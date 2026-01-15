@@ -1,0 +1,838 @@
+# Manage Easy - Web UI Implementation Plan (React + MUI)
+
+## Goal
+Build a modern web UI for the task management system using React and Material-UI that allows users to:
+- Sign in with Google (already enabled)
+- View and manage their Ideas, Features, Tasks, and Bugs
+- Get their Firebase token for MCP integration
+
+## Technology Stack
+- **Frontend:** React 18 with Vite
+- **UI Library:** Material-UI (MUI) v5
+- **State Management:** React Context + Hooks
+- **Firebase SDK:** Firebase JS SDK v10
+- **Routing:** React Router v6
+- **Build Tool:** Vite
+- **Hosting:** GitHub Pages
+
+## Project Structure
+```
+manage-easy/
+├── public/               # Firebase hosting root (production build)
+├── src/                  # React source code
+│   ├── components/       # Reusable components
+│   │   ├── Layout.jsx
+│   │   ├── Sidebar.jsx
+│   │   ├── IdeaCard.jsx
+│   │   ├── FeatureCard.jsx
+│   │   ├── TaskCard.jsx
+│   │   ├── BugCard.jsx
+│   │   ├── StatusBadge.jsx
+│   │   └── TokenDisplay.jsx
+│   ├── pages/            # Page components
+│   │   ├── Login.jsx
+│   │   ├── Dashboard.jsx
+│   │   ├── IdeasPage.jsx
+│   │   ├── FeaturesPage.jsx
+│   │   ├── TasksPage.jsx
+│   │   ├── BugsPage.jsx
+│   │   └── SettingsPage.jsx
+│   ├── contexts/         # React contexts
+│   │   ├── AuthContext.jsx
+│   │   └── DataContext.jsx
+│   ├── services/         # API services
+│   │   ├── firebase.js
+│   │   ├── api.js
+│   │   └── auth.js
+│   ├── hooks/            # Custom hooks
+│   │   ├── useIdeas.js
+│   │   ├── useFeatures.js
+│   │   ├── useTasks.js
+│   │   └── useBugs.js
+│   ├── utils/            # Utility functions
+│   │   └── constants.js
+│   ├── App.jsx           # Main app component
+│   ├── main.jsx          # Entry point
+│   └── theme.js          # MUI theme configuration
+├── package.json
+├── vite.config.js
+└── firebase.json         # Updated for SPA routing
+```
+
+## Implementation Steps
+
+### Phase 1: Project Setup & Authentication
+**Goal:** Set up React + Vite + MUI, implement Google authentication
+
+1. Initialize Vite React project
+   ```bash
+   npm create vite@latest app -- --template react
+   cd app
+   npm install
+   ```
+
+2. Install dependencies
+   ```bash
+   npm install @mui/material @emotion/react @emotion/styled
+   npm install @mui/icons-material
+   npm install firebase
+   npm install react-router-dom
+   ```
+
+3. Configure Firebase
+   - Create `src/services/firebase.js` with Firebase config
+   - Initialize Firebase Auth
+
+4. Create AuthContext
+   - Wrap app with auth state management
+   - Handle Google sign-in
+   - Handle sign-out
+   - Persist auth state
+
+5. Create Login page
+   - Material-UI Card with Google sign-in button
+   - Nice branding and welcome message
+   - Redirect to dashboard on success
+
+6. Set up routing
+   - Protected routes
+   - Public routes
+   - Redirect logic
+
+7. Create basic Layout component
+   - MUI AppBar with user menu
+   - Drawer for navigation
+   - Main content area
+
+**Deliverable:** Working login flow with protected routing
+
+### Phase 2: Ideas Management
+**Goal:** Full CRUD for ideas with MUI components
+
+1. Create API service for ideas
+   - `listIdeas()`
+   - `createIdea(title, description)`
+   - `updateIdea(id, updates)`
+   - `deleteIdea(id)`
+
+2. Create custom hook `useIdeas`
+   - Fetch ideas on mount
+   - Loading states
+   - Error handling
+   - CRUD operations
+
+3. Create IdeasPage component
+   - MUI Grid layout for idea cards
+   - Add new idea button (FAB)
+   - Empty state message
+
+4. Create IdeaCard component
+   - MUI Card with title, description, status
+   - Status badge with color coding
+   - Edit/Delete action buttons
+   - Expand to show features
+   - Click to navigate to detail view
+
+5. Create idea form dialog
+   - TextField for title
+   - TextField for description (multiline)
+   - Status select
+   - Save/Cancel buttons
+
+6. Create idea detail view
+   - Show idea info
+   - List features under this idea
+   - Add feature button
+   - Breadcrumb navigation
+
+**Deliverable:** Complete ideas management UI
+
+### Phase 3: Features Management
+**Goal:** Manage features with parent idea selection
+
+1. Create API service for features
+   - `listFeatures(ideaId?)`
+   - `createFeature(ideaId, title, description)`
+   - `updateFeature(id, updates)`
+   - `deleteFeature(id)`
+
+2. Create custom hook `useFeatures`
+   - Fetch features (optionally by idea)
+   - CRUD operations
+   - Loading/error states
+
+3. Create FeaturesPage component
+   - Group features by idea (use MUI Accordion)
+   - Show task/bug counts for each feature
+   - Add feature button
+
+4. Create FeatureCard component
+   - MUI Card with feature info
+   - Show parent idea name
+   - Task/Bug count chips
+   - Status badge
+   - Expand to show tasks/bugs
+   - Action buttons
+
+5. Create feature form dialog
+   - Idea selector (Autocomplete)
+   - Title and description fields
+   - Status select
+   - Save/Cancel
+
+**Deliverable:** Complete features management UI
+
+### Phase 4: Tasks Management
+**Goal:** Task list with filtering and quick actions
+
+1. Create API service for tasks
+   - `listTasks(featureId?)`
+   - `createTask(featureId, title, description)`
+   - `updateTask(id, updates)`
+   - `deleteTask(id)`
+
+2. Create custom hook `useTasks`
+   - Fetch tasks
+   - Filter by feature
+   - Filter by status
+   - CRUD operations
+
+3. Create TasksPage component
+   - MUI DataGrid or List for tasks
+   - Filters (feature, status) in toolbar
+   - Search bar
+   - Add task button
+
+4. Create TaskCard component
+   - Compact card design
+   - Feature name badge
+   - Status indicator
+   - Quick status update menu
+   - Edit/Delete actions
+
+5. Create task form dialog
+   - Feature selector
+   - Title, description
+   - Status select
+   - Save/Cancel
+
+6. Add status quick-update
+   - Menu button with status options
+   - Optimistic UI update
+   - Success snackbar
+
+**Deliverable:** Complete tasks management UI
+
+### Phase 5: Bugs Management
+**Goal:** Bug tracking similar to tasks
+
+1. Create API service for bugs (same pattern as tasks)
+
+2. Create custom hook `useBugs`
+
+3. Create BugsPage component
+   - Similar to TasksPage
+   - Filter by feature/status
+   - List or grid view
+
+4. Create BugCard component
+   - Red/orange theme for bugs
+   - Feature association
+   - Status and priority
+   - Quick actions
+
+5. Create bug form dialog
+   - Feature selector
+   - Title, description
+   - Status select
+
+**Deliverable:** Complete bugs management UI
+
+### Phase 6: Settings & Token Management
+**Goal:** Display Firebase token for MCP integration
+
+1. Create SettingsPage component
+   - User profile section (MUI Paper)
+   - Token display section
+   - Instructions section
+
+2. Create TokenDisplay component
+   - Show current Firebase ID token
+   - Copy to clipboard button (with tooltip)
+   - Token expiration countdown
+   - Refresh token button
+   - Token validity indicator
+
+3. Add MCP setup instructions
+   - Code snippet with user's token
+   - Step-by-step guide
+   - Example MCP configuration
+
+4. Add user preferences
+   - Theme toggle (light/dark)
+   - Notification preferences
+
+**Deliverable:** Token management and settings page
+
+### Phase 7: Polish & UX Enhancements
+**Goal:** Improve user experience with loading states, animations, and feedback
+
+1. Add loading states
+   - Skeleton screens (MUI Skeleton)
+   - Loading spinners
+   - Progress indicators
+
+2. Add error handling
+   - Error boundaries
+   - Snackbar notifications
+   - Retry mechanisms
+
+3. Add confirmation dialogs
+   - MUI Dialog for delete actions
+   - Confirmation for destructive actions
+
+4. Add animations
+   - MUI transitions
+   - Fade in/out
+   - Smooth list updates
+
+5. Mobile responsiveness
+   - Responsive drawer (temporary on mobile)
+   - Touch-friendly buttons
+   - Optimized layouts
+
+6. Add empty states
+   - Illustrations (MUI illustrations or custom)
+   - Helpful messages
+   - Call-to-action buttons
+
+7. Keyboard shortcuts
+   - Cmd/Ctrl + K for search
+   - Shortcuts for quick actions
+
+8. Add dark mode support
+   - MUI theme toggle
+   - Persist preference
+
+**Deliverable:** Polished, production-ready UI
+
+## UI Design System - Minimalist & Modern
+
+### Design Principles
+1. **Minimalism:** Clean interfaces, ample whitespace, focused content
+2. **Clarity:** Clear hierarchy, readable typography, intuitive navigation
+3. **Consistency:** Unified spacing, predictable interactions, coherent visual language
+4. **Responsiveness:** Mobile-first approach, adaptive layouts, touch-friendly targets
+5. **Performance:** Smooth animations, fast loading, optimized interactions
+
+### Color Palette
+
+#### Light Mode
+```
+Primary Colors:
+- Primary:     #2563EB (Modern blue - calm, trustworthy)
+- Primary Dark: #1E40AF
+- Primary Light: #3B82F6
+
+Neutral Colors:
+- Background:  #FFFFFF (Pure white)
+- Surface:     #F8FAFC (Subtle gray for cards)
+- Border:      #E2E8F0 (Soft dividers)
+- Text Primary: #0F172A (Near black, softer than #000)
+- Text Secondary: #64748B (Medium gray for labels)
+- Text Tertiary: #94A3B8 (Light gray for hints)
+
+Status Colors:
+- CREATED:     #64748B (Slate gray - neutral)
+- TODO:        #F59E0B (Amber - needs attention)
+- IN_PROGRESS: #3B82F6 (Blue - active work)
+- DONE:        #10B981 (Emerald - success)
+
+Semantic Colors:
+- Success:     #10B981 (Emerald)
+- Warning:     #F59E0B (Amber)
+- Error:       #EF4444 (Red)
+- Info:        #3B82F6 (Blue)
+```
+
+#### Dark Mode
+```
+Primary Colors:
+- Primary:     #3B82F6 (Brighter blue for contrast)
+- Primary Dark: #2563EB
+- Primary Light: #60A5FA
+
+Neutral Colors:
+- Background:  #0F172A (Deep navy)
+- Surface:     #1E293B (Elevated dark gray)
+- Border:      #334155 (Subtle borders)
+- Text Primary: #F1F5F9 (Off-white)
+- Text Secondary: #94A3B8 (Medium gray)
+- Text Tertiary: #64748B (Darker gray)
+
+Status Colors:
+- CREATED:     #64748B (Slate gray)
+- TODO:        #FBBF24 (Brighter amber)
+- IN_PROGRESS: #60A5FA (Brighter blue)
+- DONE:        #34D399 (Brighter emerald)
+
+Semantic Colors:
+- Success:     #34D399
+- Warning:     #FBBF24
+- Error:       #F87171
+- Info:        #60A5FA
+```
+
+### Typography Scale
+```
+Font Family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
+
+Heading 1:  32px / 2rem,   font-weight: 700, line-height: 1.2
+Heading 2:  24px / 1.5rem, font-weight: 600, line-height: 1.3
+Heading 3:  20px / 1.25rem, font-weight: 600, line-height: 1.4
+Heading 4:  18px / 1.125rem, font-weight: 600, line-height: 1.4
+Body Large: 16px / 1rem,   font-weight: 400, line-height: 1.6
+Body:       14px / 0.875rem, font-weight: 400, line-height: 1.6
+Body Small: 13px / 0.8125rem, font-weight: 400, line-height: 1.5
+Caption:    12px / 0.75rem, font-weight: 400, line-height: 1.4
+```
+
+### Spacing System (8px base unit)
+```
+xs:  4px   (0.25rem)
+sm:  8px   (0.5rem)
+md:  16px  (1rem)
+lg:  24px  (1.5rem)
+xl:  32px  (2rem)
+2xl: 48px  (3rem)
+3xl: 64px  (4rem)
+```
+
+### Border Radius
+```
+sm:  4px   (Inputs, small buttons)
+md:  8px   (Cards, buttons)
+lg:  12px  (Dialogs, modals)
+xl:  16px  (Feature elements)
+full: 9999px (Pills, avatars)
+```
+
+### Shadows (Elevation)
+```
+Low:    0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)
+Medium: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)
+High:   0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)
+```
+
+### Responsive Breakpoints
+```
+Mobile:    < 640px   (sm)
+Tablet:    640px - 1024px (md to lg)
+Desktop:   > 1024px  (lg+)
+Wide:      > 1280px  (xl)
+
+Mobile-first approach - start with mobile layout and enhance for larger screens
+```
+
+### Component Design Guidelines
+
+#### Cards
+- Background: Surface color
+- Border: 1px solid Border color
+- Border Radius: md (8px)
+- Padding: md to lg (16-24px)
+- Shadow: Low elevation on hover
+- Spacing: md (16px) between cards
+
+#### Buttons
+- Primary: Filled with primary color, white text
+- Secondary: Outlined with primary color
+- Text: No background, primary color text
+- Height: 40px (md), 36px (sm), 32px (xs)
+- Padding: 16px horizontal (md), 12px (sm)
+- Border Radius: md (8px)
+- Font Weight: 500
+- Touch Target: Minimum 44x44px on mobile
+
+#### Forms
+- Input Height: 40px
+- Border: 1px solid Border color
+- Border Radius: sm (4px)
+- Focus: 2px primary color ring
+- Label: Text Secondary, 14px, above input
+- Helper Text: Caption size, Text Tertiary
+- Error State: Error color border + text
+
+#### Navigation
+- AppBar Height: 64px desktop, 56px mobile
+- Drawer Width: 280px desktop, 100% mobile (temporary)
+- Active Item: Primary color background (10% opacity) + primary text
+- Hover: Surface color change
+- Icons: 24x24px
+
+#### Spacing & Layout
+- Page Padding: xl (32px) desktop, md (16px) mobile
+- Section Gap: xl to 2xl (32-48px)
+- Content Max Width: 1280px
+- Card Grid Gap: md to lg (16-24px)
+
+#### Animations & Transitions
+- Duration: 200ms (fast), 300ms (normal), 400ms (slow)
+- Easing: cubic-bezier(0.4, 0, 0.2, 1) - smooth
+- Hover: 200ms
+- Modal/Dialog: 300ms
+- Page Transition: 400ms
+
+### Responsive Design Rules
+
+#### Mobile (< 640px)
+- Single column layout
+- Full-width cards
+- Bottom navigation or hamburger menu
+- Drawer slides from left (temporary)
+- Stack form fields vertically
+- Hide secondary information
+- Larger touch targets (minimum 44x44px)
+- Reduce padding/margins (16px → 12px)
+
+#### Tablet (640px - 1024px)
+- 2-column grid for cards
+- Side drawer (persistent or temporary)
+- Show more information
+- Standard padding/margins
+
+#### Desktop (> 1024px)
+- 3-4 column grid for cards
+- Persistent side drawer
+- Hover states enabled
+- Full information visible
+- Generous spacing
+
+### MUI Component Usage
+
+### Key MUI Components to Use:
+- **Layout:** `AppBar`, `Drawer`, `Box`, `Container`
+- **Navigation:** `List`, `ListItem`, `Tabs`, `Breadcrumbs`
+- **Data Display:** `Card`, `Chip`, `Badge`, `Accordion`, `DataGrid`
+- **Inputs:** `TextField`, `Select`, `Autocomplete`, `Button`, `IconButton`
+- **Feedback:** `Dialog`, `Snackbar`, `Alert`, `CircularProgress`, `Skeleton`
+- **Icons:** `@mui/icons-material` (Add, Edit, Delete, etc.)
+
+### Theme Configuration (src/theme.js):
+```javascript
+import { createTheme } from '@mui/material/styles';
+
+const getTheme = (mode) => createTheme({
+  palette: {
+    mode,
+    primary: {
+      main: mode === 'light' ? '#2563EB' : '#3B82F6',
+      dark: mode === 'light' ? '#1E40AF' : '#2563EB',
+      light: mode === 'light' ? '#3B82F6' : '#60A5FA',
+    },
+    background: {
+      default: mode === 'light' ? '#FFFFFF' : '#0F172A',
+      paper: mode === 'light' ? '#F8FAFC' : '#1E293B',
+    },
+    text: {
+      primary: mode === 'light' ? '#0F172A' : '#F1F5F9',
+      secondary: mode === 'light' ? '#64748B' : '#94A3B8',
+      tertiary: mode === 'light' ? '#94A3B8' : '#64748B',
+    },
+    divider: mode === 'light' ? '#E2E8F0' : '#334155',
+    status: {
+      created: '#64748B',
+      todo: mode === 'light' ? '#F59E0B' : '#FBBF24',
+      inProgress: mode === 'light' ? '#3B82F6' : '#60A5FA',
+      done: mode === 'light' ? '#10B981' : '#34D399',
+    },
+    success: {
+      main: mode === 'light' ? '#10B981' : '#34D399',
+    },
+    warning: {
+      main: mode === 'light' ? '#F59E0B' : '#FBBF24',
+    },
+    error: {
+      main: mode === 'light' ? '#EF4444' : '#F87171',
+    },
+    info: {
+      main: mode === 'light' ? '#3B82F6' : '#60A5FA',
+    },
+  },
+  typography: {
+    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    h1: {
+      fontSize: '2rem',
+      fontWeight: 700,
+      lineHeight: 1.2,
+    },
+    h2: {
+      fontSize: '1.5rem',
+      fontWeight: 600,
+      lineHeight: 1.3,
+    },
+    h3: {
+      fontSize: '1.25rem',
+      fontWeight: 600,
+      lineHeight: 1.4,
+    },
+    h4: {
+      fontSize: '1.125rem',
+      fontWeight: 600,
+      lineHeight: 1.4,
+    },
+    body1: {
+      fontSize: '1rem',
+      lineHeight: 1.6,
+    },
+    body2: {
+      fontSize: '0.875rem',
+      lineHeight: 1.6,
+    },
+    caption: {
+      fontSize: '0.75rem',
+      lineHeight: 1.4,
+    },
+  },
+  spacing: 8, // Base unit
+  shape: {
+    borderRadius: 8, // Default border radius
+  },
+  shadows: [
+    'none',
+    '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
+    '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
+    '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
+    // ... rest of default shadows
+  ],
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 500,
+          borderRadius: 8,
+        },
+        sizeMedium: {
+          height: 40,
+          padding: '0 16px',
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          border: `1px solid ${mode === 'light' ? '#E2E8F0' : '#334155'}`,
+        },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            borderRadius: 4,
+          },
+        },
+      },
+    },
+  },
+});
+
+export default getTheme;
+```
+
+## API Integration
+
+### Service Layer (src/services/api.js):
+```javascript
+const BASE_URL = 'https://us-central1-manage-easy-1768423759.cloudfunctions.net';
+
+class ApiService {
+  constructor() {
+    this.token = null;
+  }
+
+  setToken(token) {
+    this.token = token;
+  }
+
+  async request(endpoint, options = {}) {
+    const response = await fetch(`${BASE_URL}/${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.token}`,
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Request failed');
+    }
+
+    return response.json();
+  }
+
+  // Ideas
+  async listIdeas() {
+    return this.request('listIdeas');
+  }
+
+  async createIdea(data) {
+    return this.request('createIdea', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ... more methods
+}
+
+export default new ApiService();
+```
+
+## Build & Deployment
+
+### Development:
+```bash
+cd app
+npm run dev
+```
+
+### Production Build:
+```bash
+npm run build
+# Outputs to dist/ directory
+```
+
+### GitHub Pages Deployment:
+
+#### Option 1: Using gh-pages package (Recommended)
+1. Install gh-pages:
+```bash
+npm install --save-dev gh-pages
+```
+
+2. Add to package.json scripts:
+```json
+{
+  "scripts": {
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
+  },
+  "homepage": "https://yourusername.github.io/manage-easy"
+}
+```
+
+3. Deploy:
+```bash
+npm run deploy
+```
+
+#### Option 2: GitHub Actions (CI/CD)
+Create `.github/workflows/deploy.yml`:
+```yaml
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: cd app && npm ci
+      - name: Build
+        run: cd app && npm run build
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: ./app/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+```
+
+#### Vite Configuration for GitHub Pages
+Update `vite.config.js` to set the correct base path:
+```javascript
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  base: '/manage-easy/', // Replace with your repo name
+})
+```
+
+#### SPA Routing on GitHub Pages
+Create `public/404.html` to handle client-side routing:
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Redirecting...</title>
+    <script>
+      // Redirect to index.html with path in query string
+      sessionStorage.redirect = location.href;
+    </script>
+    <meta http-equiv="refresh" content="0;URL='/'">
+  </head>
+  <body>
+  </body>
+</html>
+```
+
+Add to `index.html` (in `<head>` before other scripts):
+```html
+<script>
+  // Check for redirect from 404.html
+  (function(){
+    var redirect = sessionStorage.redirect;
+    delete sessionStorage.redirect;
+    if (redirect && redirect != location.href) {
+      history.replaceState(null, null, redirect);
+    }
+  })();
+</script>
+```
+
+## Status Color Coding (Updated)
+- **CREATED:** Slate Gray (#64748B) - Neutral, awaiting action
+- **TODO:** Amber (#F59E0B light / #FBBF24 dark) - Needs attention
+- **IN_PROGRESS:** Blue (#3B82F6 light / #60A5FA dark) - Active work
+- **DONE:** Emerald (#10B981 light / #34D399 dark) - Completed successfully
+
+## Next Steps
+1. Set up React + Vite project
+2. Install MUI and dependencies
+3. Configure Firebase
+4. Configure GitHub Pages deployment
+5. Implement Phase 1 (Auth & Layout)
+6. Progress through phases 2-7
+7. Deploy to GitHub Pages
+
+**Ready to start implementing Phase 1?**
