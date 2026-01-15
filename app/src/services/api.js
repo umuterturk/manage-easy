@@ -147,6 +147,28 @@ class ApiService {
       body: JSON.stringify({ id }),
     });
   }
+
+  // Comments
+  async addComment(entityType, entityId, text, authorName) {
+    return this.request('addComment', {
+      method: 'POST',
+      body: JSON.stringify({ entityType, entityId, text, authorName }),
+    });
+  }
+
+  async updateComment(entityType, entityId, commentId, text) {
+    return this.request('updateComment', {
+      method: 'POST',
+      body: JSON.stringify({ entityType, entityId, commentId, text }),
+    });
+  }
+
+  async deleteComment(entityType, entityId, commentId) {
+    return this.request('deleteComment', {
+      method: 'POST',
+      body: JSON.stringify({ entityType, entityId, commentId }),
+    });
+  }
 }
 
 export default new ApiService();

@@ -30,6 +30,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { useAuth } from '../contexts/AuthContext';
+import { useLayout } from '../contexts/LayoutContext';
 
 const drawerWidth = 280;
 
@@ -41,6 +42,7 @@ const menuItems = [
 
 const Layout = ({ children, darkMode, toggleDarkMode }) => {
   const { user, signOut } = useAuth();
+  const { breadcrumbs } = useLayout();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -158,9 +160,15 @@ const Layout = ({ children, darkMode, toggleDarkMode }) => {
             <MenuIcon />
           </IconButton>
 
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Manage Easy
-          </Typography>
+          {breadcrumbs ? (
+            <Box sx={{ flexGrow: 1 }}>
+              {breadcrumbs}
+            </Box>
+          ) : (
+            <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+              Manage Easy
+            </Typography>
+          )}
 
           <IconButton onClick={toggleDarkMode} color="inherit" sx={{ mr: 1 }}>
             {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}

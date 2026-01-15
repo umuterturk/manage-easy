@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { LayoutProvider } from './contexts/LayoutContext';
+import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 import getTheme from './theme';
 
 // Pages
@@ -35,19 +37,30 @@ const ProtectedRoute = ({ children }) => {
 // App Routes component (needs to be inside AuthProvider)
 const AppRoutes = ({ darkMode, toggleDarkMode }) => {
   const { user } = useAuth();
+  const { settings } = useSettings();
+
+  const getRedirectPath = () => {
+    if (settings.redirectToLastIdea) {
+      const lastIdeaId = localStorage.getItem('lastIdeaId');
+      if (lastIdeaId) {
+        return `/ideas/${lastIdeaId}`;
+      }
+    }
+    return "/dashboard";
+  };
 
   return (
     <Routes>
       <Route
         path="/login"
-        element={user ? <Navigate to="/dashboard" replace /> : <Login />}
+        element={user ? <Navigate to={getRedirectPath()} replace /> : <Login />}
       />
       <Route
         path="/"
         element={
           <ProtectedRoute>
             <Layout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
-              <Navigate to="/dashboard" replace />
+              <Navigate to={getRedirectPath()} replace />
             </Layout>
           </ProtectedRoute>
         }
@@ -140,7 +153,11 @@ function App() {
       <CssBaseline />
       <BrowserRouter basename="/manage-easy">
         <AuthProvider>
-          <AppRoutes darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+          <SettingsProvider>
+            <LayoutProvider>
+              <AppRoutes darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+            </LayoutProvider>
+          </SettingsProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

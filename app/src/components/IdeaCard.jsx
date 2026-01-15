@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { Chip } from '@mui/material';
 import StatusBadge from './StatusBadge';
 
 const IdeaCard = ({ idea, onEdit, onDelete }) => {
@@ -38,9 +39,24 @@ const IdeaCard = ({ idea, onEdit, onDelete }) => {
         },
       }}
     >
-      <CardContent sx={{ flexGrow: 1, pb: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-          <Typography variant="h6" component="h2" sx={{ fontWeight: 600, flexGrow: 1, mr: 1 }}>
+      <CardContent sx={{ flexGrow: 1, p: 1, '&:last-child': { pb: 1 } }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+          <Typography
+            variant="h6"
+            component="h2"
+            sx={{
+              fontWeight: 600,
+              flexGrow: 1,
+              mr: 1,
+              fontSize: '1rem',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              lineHeight: 1.2,
+            }}
+          >
             {idea.title}
           </Typography>
           <StatusBadge status={idea.status} />
@@ -63,6 +79,26 @@ const IdeaCard = ({ idea, onEdit, onDelete }) => {
           </Typography>
         )}
 
+        {idea.tags && idea.tags.length > 0 && (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 2 }}>
+            {idea.tags.map((tag) => (
+              <Chip
+                key={tag}
+                label={tag}
+                size="small"
+                sx={{
+                  height: 20,
+                  fontSize: '0.7rem',
+                  bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                  color: 'text.secondary',
+                  borderColor: 'divider',
+                  border: '1px solid',
+                }}
+              />
+            ))}
+          </Box>
+        )}
+
         {idea.features && idea.features.length > 0 && (
           <Box sx={{ mt: 2 }}>
             <Typography variant="caption" color="text.secondary">
@@ -72,7 +108,7 @@ const IdeaCard = ({ idea, onEdit, onDelete }) => {
         )}
       </CardContent>
 
-      <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
+      <CardActions sx={{ justifyContent: 'flex-end', p: 0.5 }}>
         <Tooltip title="Edit">
           <IconButton
             size="small"
