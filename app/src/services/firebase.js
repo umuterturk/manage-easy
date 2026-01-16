@@ -21,14 +21,13 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
 // Connect to emulator in development mode
-// Commented out until emulators are properly configured
-// if (import.meta.env.DEV) {
-//   try {
-//     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-//   } catch (error) {
-//     // Already connected, ignore
-//   }
-// }
+if (import.meta.env.DEV) {
+  try {
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  } catch (error) {
+    // Already connected, ignore
+  }
+}
 
 export { auth, googleProvider };
 export default app;

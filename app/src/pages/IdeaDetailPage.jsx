@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import apiService from '../services/api';
 import {
   Box,
   Typography,
@@ -17,11 +16,16 @@ import {
   DialogContent,
   DialogActions,
   Snackbar,
-  TextField,
   SpeedDial,
   SpeedDialIcon,
   SpeedDialAction,
+  Avatar,
+  AvatarGroup,
+  IconButton,
 } from '@mui/material';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import UserSelectDialog from '../components/UserSelectDialog';
+import ApiService from '../services/api';
 import TaskIcon from '@mui/icons-material/Task';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
@@ -29,13 +33,9 @@ import { useIdeas } from '../hooks/useIdeas';
 import { useAuth } from '../contexts/AuthContext';
 import { useLayout } from '../contexts/LayoutContext';
 import { useFeatures } from '../hooks/useFeatures';
-import { useTasks } from '../hooks/useTasks';
-import { useBugs } from '../hooks/useBugs';
-import StatusBadge from '../components/StatusBadge';
-import TaskCard from '../components/TaskCard';
-import BugCard from '../components/BugCard';
-import TaskFormDialog from '../components/TaskFormDialog';
-import BugFormDialog from '../components/BugFormDialog';
+import useWorks from '../hooks/useWorks';
+import WorkCard from '../components/WorkCard';
+import WorkFormDialog from '../components/WorkFormDialog';
 import { STATUS } from '../utils/constants';
 
 const CARD_HEIGHT = 120; // Fixed card height in pixels
@@ -43,7 +43,6 @@ const CARD_GAP = 8; // Gap between cards
 
 // Draggable card wrapper
 const DraggableCard = ({
-  type,
   item,
   featureName,
   onEdit,
@@ -58,7 +57,6 @@ const DraggableCard = ({
   onCancelDraft,
 }) => {
   const handleMouseDown = (e) => {
-    // Don't start drag on buttons, inputs, textareas or elements intended to be clickable
     if (
       e.target.closest('button') ||
       e.target.closest('input') ||
@@ -67,7 +65,7 @@ const DraggableCard = ({
     ) return;
 
     e.preventDefault();
-    onDragStart(e, item, type);
+    onDragStart(e, item);
   };
 
   if (isPlaceholder) {
@@ -100,27 +98,17 @@ const DraggableCard = ({
         },
       }}
     >
-      {type === 'task' ? (
-        <TaskCard
-          task={item}
-          featureName={featureName}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onUpdate={onUpdate}
-          autoFocus={autoFocus}
-          isDraft={isDraft}
-          onSaveDraft={onSaveDraft}
-          onCancelDraft={onCancelDraft}
-        />
-      ) : (
-        <BugCard
-          bug={item}
-          featureName={featureName}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onUpdate={onUpdate}
-        />
-      )}
+      <WorkCard
+        work={item}
+        featureName={featureName}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onUpdate={onUpdate}
+        autoFocus={autoFocus}
+        isDraft={isDraft}
+        onSaveDraft={onSaveDraft}
+        onCancelDraft={onCancelDraft}
+      />
     </Box>
   );
 };
@@ -132,18 +120,15 @@ const KanbanColumn = ({
   items,
   count,
   color,
-  onAddTask,
-  onAddBug,
   getFeatureName,
   onEdit,
   onDelete,
-  onUpdateTask,
-  onUpdateBug,
+  onUpdateWork,
   onDragStart,
   dragState,
   columnRef,
   onLaneDoubleClick,
-  autoFocusTaskId,
+  autoFocusWorkId,
   onSaveDraft,
   onCancelDraft,
 }) => {
@@ -206,24 +191,21 @@ const KanbanColumn = ({
           {items.map((item) => (
             <DraggableCard
               key={item.isPlaceholder ? 'placeholder' : item.uniqueId}
-              type={item.type}
               item={item.data}
               featureName={item.isPlaceholder ? null : getFeatureName(item.data?.featureId)}
-              onEdit={(data) => onEdit(data, item.type)}
-              onDelete={(data) => onDelete(data, item.type)}
-              onUpdate={item.type === 'task' ? onUpdateTask : onUpdateBug}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onUpdate={onUpdateWork}
               onDragStart={onDragStart}
               isDragging={dragState?.activeItemId === item.data?.id}
               isPlaceholder={item.isPlaceholder}
-              autoFocus={autoFocusTaskId === item.data?.id}
+              autoFocus={autoFocusWorkId === item.data?.id}
               isDraft={item.isDraft}
               onSaveDraft={(title) => onSaveDraft(title, status)}
               onCancelDraft={onCancelDraft}
             />
           ))}
         </Box>
-
-        {/* Buttons removed in favor of floating action button */}
       </Paper>
     </Box>
   );
@@ -236,17 +218,21 @@ const IdeaDetailPage = () => {
   const { setBreadcrumbs } = useLayout();
   const { ideas, loading: ideasLoading, error: ideasError, updateIdea } = useIdeas();
   const { features } = useFeatures(ideaId);
-  const { tasks, createTask, updateTask, deleteTask } = useTasks();
-  const { bugs, createBug, updateBug, deleteBug } = useBugs();
-  const [autoFocusTaskId, setAutoFocusTaskId] = useState(null);
-  const [draftTask, setDraftTask] = useState(null);
+
+  // Use unified works hook
+  const { works, createWork, updateWork, deleteWork } = useWorks(null, ideaId); // Pass ideaId to filter
+
+  const [autoFocusWorkId, setAutoFocusWorkId] = useState(null);
+  const [draftWork, setDraftWork] = useState(null);
 
   const [idea, setIdea] = useState(null);
-  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
-  const [bugDialogOpen, setBugDialogOpen] = useState(false);
+  const [workDialogOpen, setWorkDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [deleteType, setDeleteType] = useState('task');
+
+  // Default type for new work when opening dialog from SpeedDial
+  const [defaultWorkType, setDefaultWorkType] = useState('TASK');
+
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [actionLoading, setActionLoading] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
@@ -254,7 +240,35 @@ const IdeaDetailPage = () => {
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
 
-  // Drag state: { activeItemId, activeType, sourceStatus, targetStatus, targetIndex }
+  // User assignment state
+  const [assignUsersOpen, setAssignUsersOpen] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await ApiService.listUsers();
+        if (response.success) {
+          setAllUsers(response.users);
+        }
+      } catch (error) {
+        console.error('Failed to fetch users:', error);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  const handleAssignUsers = async (userIds) => {
+    try {
+      await updateIdea(ideaId, { assignedUserIds: userIds, ownerId: idea?.createdBy });
+      setIdea(prev => ({ ...prev, assignedUserIds: userIds }));
+      setSnackbar({ open: true, message: 'Users assigned successfully!', severity: 'success' });
+    } catch (error) {
+      setSnackbar({ open: true, message: `Error: ${error.message}`, severity: 'error' });
+    }
+  };
+
+  // Drag state: { activeItemId, sourceStatus, targetStatus, targetIndex }
   const [dragState, setDragState] = useState(null);
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
   const [optimisticOrder, setOptimisticOrder] = useState(null);
@@ -262,37 +276,22 @@ const IdeaDetailPage = () => {
   // Refs for columns
   const columnRefs = useRef({});
 
-  // Filter tasks and bugs for this idea
-  const baseIdeaTasks = tasks.filter((task) => task.ideaId === ideaId);
-  const baseIdeaBugs = bugs.filter((bug) => bug.ideaId === ideaId);
-
-  // Apply optimistic ordering if present
-  const ideaTasks = optimisticOrder
-    ? baseIdeaTasks.map((task) => {
-      const optimisticIndex = optimisticOrder.items.findIndex((item) => item.id === task.id && item.type === 'task');
+  // Filter works for this idea (already done by hook but good to be safe if hook changes)
+  const ideaWorks = optimisticOrder
+    ? works.map((work) => {
+      const optimisticIndex = optimisticOrder.items.findIndex((item) => item.id === work.id);
       if (optimisticIndex !== -1) {
-        return { ...task, order: optimisticIndex, status: optimisticOrder.status };
+        return { ...work, order: optimisticIndex, status: optimisticOrder.status };
       }
-      return task;
+      return work;
     })
-    : baseIdeaTasks;
-
-  const ideaBugs = optimisticOrder
-    ? baseIdeaBugs.map((bug) => {
-      const optimisticIndex = optimisticOrder.items.findIndex((item) => item.id === bug.id && item.type === 'bug');
-      if (optimisticIndex !== -1) {
-        return { ...bug, order: optimisticIndex, status: optimisticOrder.status };
-      }
-      return bug;
-    })
-    : baseIdeaBugs;
+    : works;
 
   useEffect(() => {
     if (ideas.length > 0) {
       const foundIdea = ideas.find((i) => i.id === ideaId);
       if (foundIdea) {
         setIdea(foundIdea);
-        // Save as last visited idea
         localStorage.setItem('lastIdeaId', ideaId);
       } else {
         navigate('/ideas');
@@ -315,6 +314,21 @@ const IdeaDetailPage = () => {
           <Typography color="text.primary" sx={{ fontWeight: 600 }}>
             {idea.title}
           </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+            <AvatarGroup max={4} sx={{ mr: 1, '& .MuiAvatar-root': { width: 32, height: 32, fontSize: '0.875rem' } }}>
+              {(idea.assignedUserIds || []).map(uid => {
+                const u = allUsers.find(user => user.uid === uid);
+                return (
+                  <Avatar key={uid} alt={u?.displayName || 'Unknown'} src={u?.photoURL}>
+                    {(u?.displayName || '?').charAt(0)}
+                  </Avatar>
+                );
+              })}
+            </AvatarGroup>
+            <IconButton size="small" onClick={() => setAssignUsersOpen(true)}>
+              <PersonAddIcon fontSize="small" />
+            </IconButton>
+          </Box>
         </Breadcrumbs>
       );
     }
@@ -365,12 +379,10 @@ const IdeaDetailPage = () => {
         return;
       }
 
-      const { activeItemId, activeType, sourceStatus, targetStatus, targetIndex } = dragState;
+      const { activeItemId, sourceStatus, targetStatus, targetIndex } = dragState;
 
       // Build the new order with the dragged item inserted
-      const draggedItemData = activeType === 'task'
-        ? ideaTasks.find((t) => t.id === activeItemId)
-        : ideaBugs.find((b) => b.id === activeItemId);
+      const draggedItemData = ideaWorks.find((w) => w.id === activeItemId);
 
       if (!draggedItemData) {
         setDragState(null);
@@ -385,8 +397,8 @@ const IdeaDetailPage = () => {
       // Insert dragged item at target index
       const newItems = [...targetItems];
       const draggedItem = {
-        uniqueId: `${activeType}-${activeItemId}-${targetStatus}`,
-        type: activeType,
+        uniqueId: `work-${activeItemId}-${targetStatus}`,
+        type: 'work',
         data: draggedItemData,
       };
       newItems.splice(Math.min(targetIndex, newItems.length), 0, draggedItem);
@@ -394,7 +406,7 @@ const IdeaDetailPage = () => {
       // Apply optimistic update
       setOptimisticOrder({
         status: targetStatus,
-        items: newItems.map((item) => ({ id: item.data.id, type: item.type })),
+        items: newItems.map((item) => ({ id: item.data.id })),
       });
 
       setDragState(null);
@@ -403,32 +415,28 @@ const IdeaDetailPage = () => {
         if (sourceStatus === targetStatus) {
           // Same lane sorting
           const updatePromises = newItems.map((item, index) => {
-            if (item.type === 'task') {
-              return updateTask(item.data.id, { order: index });
-            } else {
-              return updateBug(item.data.id, { order: index });
+            // Only update if order changed
+            if (item.data.order !== index) {
+              return updateWork(item.data.id, { order: index, ownerId: idea?.createdBy });
             }
+            return Promise.resolve();
           });
           await Promise.all(updatePromises);
         } else {
           // Cross-lane move
           const updatePromises = newItems.map((item, index) => {
             if (item.data.id === activeItemId) {
-              if (item.type === 'task') {
-                return updateTask(item.data.id, { status: targetStatus, order: index });
-              } else {
-                return updateBug(item.data.id, { status: targetStatus, order: index });
-              }
+              return updateWork(item.data.id, { status: targetStatus, order: index, ownerId: idea?.createdBy });
             } else {
-              if (item.type === 'task') {
-                return updateTask(item.data.id, { order: index });
-              } else {
-                return updateBug(item.data.id, { order: index });
+              // Only update if order changed
+              if (item.data.order !== index) {
+                return updateWork(item.data.id, { order: index, ownerId: idea?.createdBy });
               }
+              return Promise.resolve();
             }
           });
           await Promise.all(updatePromises);
-          setSnackbar({ open: true, message: `${activeType === 'task' ? 'Task' : 'Bug'} moved successfully!`, severity: 'success' });
+          setSnackbar({ open: true, message: `Item moved successfully!`, severity: 'success' });
         }
       } catch (err) {
         setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
@@ -444,31 +452,24 @@ const IdeaDetailPage = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [dragState, ideaTasks, ideaBugs, updateTask, updateBug]);
+  }, [dragState, ideaWorks, updateWork]);
 
-  const handleOpenTaskDialog = (task = null) => {
-    setSelectedItem(task);
-    setTaskDialogOpen(true);
+  const handleOpenWorkDialog = (work = null, type = 'TASK') => {
+    setSelectedItem(work);
+    // If editing, use existing type. If creating, use passed type.
+    if (!work) {
+      setSelectedItem({ type });
+    }
+    setWorkDialogOpen(true);
   };
 
-  const handleOpenBugDialog = (bug = null) => {
-    setSelectedItem(bug);
-    setBugDialogOpen(true);
-  };
-
-  const handleCloseTaskDialog = () => {
-    setTaskDialogOpen(false);
+  const handleCloseWorkDialog = () => {
+    setWorkDialogOpen(false);
     setSelectedItem(null);
   };
 
-  const handleCloseBugDialog = () => {
-    setBugDialogOpen(false);
-    setSelectedItem(null);
-  };
-
-  const handleOpenDeleteDialog = (item, type) => {
+  const handleOpenDeleteDialog = (item) => {
     setSelectedItem(item);
-    setDeleteType(type);
     setDeleteDialogOpen(true);
   };
 
@@ -477,45 +478,22 @@ const IdeaDetailPage = () => {
     setSelectedItem(null);
   };
 
-  const handleSubmitTask = async (formData) => {
+  const handleSubmitWork = async (formData) => {
     setActionLoading(true);
     try {
-      const taskData = {
+      const workData = {
         ...formData,
         ideaId,
       };
 
-      if (selectedItem) {
-        await updateTask(selectedItem.id, taskData);
-        setSnackbar({ open: true, message: 'Task updated successfully!', severity: 'success' });
+      if (selectedItem && selectedItem.id) {
+        await updateWork(selectedItem.id, { ...workData, ownerId: idea?.createdBy });
+        setSnackbar({ open: true, message: 'Item updated successfully!', severity: 'success' });
       } else {
-        await createTask({ ...taskData, creatorName: user?.displayName || user?.email || '' });
-        setSnackbar({ open: true, message: 'Task created successfully!', severity: 'success' });
+        await createWork({ ...workData, creatorName: user?.displayName || user?.email || '', ownerId: idea?.createdBy });
+        setSnackbar({ open: true, message: 'Item created successfully!', severity: 'success' });
       }
-      handleCloseTaskDialog();
-    } catch (err) {
-      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleSubmitBug = async (formData) => {
-    setActionLoading(true);
-    try {
-      const bugData = {
-        ...formData,
-        ideaId,
-      };
-
-      if (selectedItem) {
-        await updateBug(selectedItem.id, bugData);
-        setSnackbar({ open: true, message: 'Bug updated successfully!', severity: 'success' });
-      } else {
-        await createBug({ ...bugData, creatorName: user?.displayName || user?.email || '' });
-        setSnackbar({ open: true, message: 'Bug reported successfully!', severity: 'success' });
-      }
-      handleCloseBugDialog();
+      handleCloseWorkDialog();
     } catch (err) {
       setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     } finally {
@@ -528,13 +506,8 @@ const IdeaDetailPage = () => {
 
     setActionLoading(true);
     try {
-      if (deleteType === 'task') {
-        await deleteTask(selectedItem.id);
-        setSnackbar({ open: true, message: 'Task deleted successfully!', severity: 'success' });
-      } else {
-        await deleteBug(selectedItem.id);
-        setSnackbar({ open: true, message: 'Bug deleted successfully!', severity: 'success' });
-      }
+      await deleteWork(selectedItem.id, idea?.createdBy);
+      setSnackbar({ open: true, message: 'Item deleted successfully!', severity: 'success' });
       handleCloseDeleteDialog();
     } catch (err) {
       setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
@@ -544,45 +517,42 @@ const IdeaDetailPage = () => {
   };
 
   const handleLaneDoubleClick = (status) => {
-    // Check if there is already a draft in any lane
-    if (draftTask) return;
+    if (draftWork) return;
 
-    // Check if there is already an "empty" task in this lane (existing saved one)
     const existingItems = getBaseColumnItems(status);
-    const emptyTask = existingItems.find(item =>
-      item.type === 'task' &&
+    const emptyWork = existingItems.find(item =>
       (!item.data.title || item.data.title.trim() === '')
     );
 
-    if (emptyTask) {
-      setAutoFocusTaskId(emptyTask.data.id);
-      setTimeout(() => setAutoFocusTaskId(null), 1000);
+    if (emptyWork) {
+      setAutoFocusWorkId(emptyWork.data.id);
+      setTimeout(() => setAutoFocusWorkId(null), 1000);
       return;
     }
 
-    // Create local draft instead of API call
-    setDraftTask({ status });
+    setDraftWork({ status });
   };
 
   const handleSaveDraft = async (title, status) => {
     try {
-      const taskData = {
+      const workData = {
         title,
         description: '',
         status,
         ideaId,
+        type: 'TASK', // Default to Task for quick add
         creatorName: user?.displayName || user?.email || '',
       };
 
-      await createTask(taskData);
-      setDraftTask(null);
+      await createWork({ ...workData, ownerId: idea?.createdBy });
+      setDraftWork(null);
     } catch (err) {
       setSnackbar({ open: true, message: `Error: ${err.message}`, severity: 'error' });
     }
   };
 
   const handleCancelDraft = () => {
-    setDraftTask(null);
+    setDraftWork(null);
   };
 
   const handleCloseSnackbar = () => {
@@ -602,7 +572,7 @@ const IdeaDetailPage = () => {
   const handleTitleSave = async () => {
     if (editedTitle.trim() && editedTitle !== idea.title) {
       try {
-        await updateIdea(ideaId, { title: editedTitle.trim() });
+        await updateIdea(ideaId, { title: editedTitle.trim(), ownerId: idea?.createdBy });
         setIdea({ ...idea, title: editedTitle.trim() });
         setSnackbar({ open: true, message: 'Title updated successfully!', severity: 'success' });
       } catch (err) {
@@ -615,7 +585,7 @@ const IdeaDetailPage = () => {
   const handleDescriptionSave = async () => {
     if (editedDescription !== idea.description) {
       try {
-        await updateIdea(ideaId, { description: editedDescription });
+        await updateIdea(ideaId, { description: editedDescription, ownerId: idea?.createdBy });
         setIdea({ ...idea, description: editedDescription });
         setSnackbar({ open: true, message: 'Description updated successfully!', severity: 'success' });
       } catch (err) {
@@ -647,11 +617,10 @@ const IdeaDetailPage = () => {
     return feature?.title || null;
   };
 
-  const handleDragStart = (e, item, type) => {
+  const handleDragStart = (e, item) => {
     const status = item.status;
     setDragState({
       activeItemId: item.id,
-      activeType: type,
       sourceStatus: status,
       targetStatus: status,
       targetIndex: getBaseColumnItems(status).findIndex((i) => i.data.id === item.id),
@@ -667,30 +636,21 @@ const IdeaDetailPage = () => {
   ];
 
   const getBaseColumnItems = (status) => {
-    const columnTasks = ideaTasks
-      .filter((task) => task.status === status)
-      .map((task) => ({
-        uniqueId: `task-${task.id}-${status}`,
-        type: 'task',
-        data: task,
-      }));
-
-    const columnBugs = ideaBugs
-      .filter((bug) => bug.status === status)
-      .map((bug) => ({
-        uniqueId: `bug-${bug.id}-${status}`,
-        type: 'bug',
-        data: bug,
-      }));
-
-    const items = [...columnTasks, ...columnBugs].sort((a, b) => (a.data.order || 0) - (b.data.order || 0));
+    const items = ideaWorks
+      .filter((work) => work.status === status)
+      .map((work) => ({
+        uniqueId: `work-${work.id}-${status}`,
+        type: 'work',
+        data: work,
+      }))
+      .sort((a, b) => (a.data.order || 0) - (b.data.order || 0));
 
     // Inject draft task at the end if status matches
-    if (draftTask && draftTask.status === status) {
+    if (draftWork && draftWork.status === status) {
       items.push({
-        uniqueId: 'draft-task',
-        type: 'task',
-        data: { id: 'draft-id', title: '', status: status },
+        uniqueId: 'draft-work',
+        type: 'work',
+        data: { id: 'draft-id', title: '', status: status, type: 'TASK' }, // Default draft to TASK
         isDraft: true
       });
     }
@@ -708,7 +668,7 @@ const IdeaDetailPage = () => {
       // Insert placeholder at target index
       const placeholder = {
         uniqueId: 'placeholder',
-        type: dragState.activeType,
+        type: 'work',
         data: null,
         isPlaceholder: true,
       };
@@ -721,15 +681,10 @@ const IdeaDetailPage = () => {
     return items;
   };
 
-  // Get the dragged item data for the floating card
   const getDraggedItemData = () => {
     if (!dragState) return null;
-    const { activeItemId, activeType } = dragState;
-    if (activeType === 'task') {
-      return { type: 'task', data: ideaTasks.find((t) => t.id === activeItemId) };
-    } else {
-      return { type: 'bug', data: ideaBugs.find((b) => b.id === activeItemId) };
-    }
+    const { activeItemId } = dragState;
+    return ideaWorks.find((w) => w.id === activeItemId);
   };
 
   if (ideasLoading && !idea) {
@@ -758,14 +713,14 @@ const IdeaDetailPage = () => {
     );
   }
 
-  const draggedItem = getDraggedItemData();
+  const draggedItemData = getDraggedItemData();
 
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
 
       <Container maxWidth="xl" sx={{ flexGrow: 1, overflow: 'hidden', pb: 3 }}>
-        {ideaTasks.length === 0 && ideaBugs.length === 0 ? (
+        {ideaWorks.length === 0 ? (
           <Box
             sx={{
               display: 'flex',
@@ -777,10 +732,10 @@ const IdeaDetailPage = () => {
             }}
           >
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              No tasks or bugs yet
+              No items yet
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Get started by creating your first task or reporting a bug
+              Get started by creating your first task or bug
             </Typography>
             <Box sx={{ display: 'flex', gap: 2 }}>
               <Typography variant="body2" color="text.secondary">
@@ -808,148 +763,117 @@ const IdeaDetailPage = () => {
               },
             }}
           >
-            {columns.map((column) => {
-              const items = getColumnItemsWithPlaceholder(column.status);
-              return (
-                <KanbanColumn
-                  key={column.status}
-                  status={column.status}
-                  title={column.title}
-                  items={items}
-                  count={getBaseColumnItems(column.status).filter(
-                    (item) => !dragState || item.data.id !== dragState.activeItemId || dragState.targetStatus === column.status
-                  ).length}
-                  color={column.color}
-                  onAddTask={() => handleOpenTaskDialog()}
-                  onAddBug={() => handleOpenBugDialog()}
-                  getFeatureName={getFeatureName}
-                  onEdit={(item, type) =>
-                    type === 'task' ? handleOpenTaskDialog(item) : handleOpenBugDialog(item)
-                  }
-                  onDelete={handleOpenDeleteDialog}
-                  onUpdateTask={updateTask}
-                  onUpdateBug={updateBug}
-                  onDragStart={handleDragStart}
-                  dragState={dragState}
-                  columnRef={(el) => (columnRefs.current[column.status] = el)}
-                  onLaneDoubleClick={handleLaneDoubleClick}
-                  autoFocusTaskId={autoFocusTaskId}
-                  onSaveDraft={handleSaveDraft}
-                  onCancelDraft={handleCancelDraft}
-                />
-              );
-            })}
+            {columns.map((column) => (
+              <KanbanColumn
+                key={column.status}
+                status={column.status}
+                title={column.title}
+                color={column.color}
+                items={getColumnItemsWithPlaceholder(column.status)}
+                count={ideaWorks.filter((w) => w.status === column.status).length}
+                getFeatureName={getFeatureName}
+                onEdit={handleOpenWorkDialog}
+                onDelete={handleOpenDeleteDialog}
+                onUpdateWork={updateWork}
+                onDragStart={handleDragStart}
+                dragState={dragState}
+                columnRef={(el) => (columnRefs.current[column.status] = el)}
+                onLaneDoubleClick={handleLaneDoubleClick}
+                autoFocusWorkId={autoFocusWorkId}
+                onSaveDraft={handleSaveDraft}
+                onCancelDraft={handleCancelDraft}
+              />
+            ))}
           </Box>
         )}
       </Container>
 
-      {/* Floating dragged card */}
-      {dragState && draggedItem?.data && (
-        <Box
-          sx={{
-            position: 'fixed',
-            left: dragPosition.x - 140,
-            top: dragPosition.y - 60,
-            width: 280,
-            height: CARD_HEIGHT,
-            pointerEvents: 'none',
-            zIndex: 9999,
-            opacity: 0.9,
-            transform: 'rotate(3deg)',
-            '& > *': {
-              height: '100%',
-            },
-          }}
-        >
-          {draggedItem.type === 'task' ? (
-            <TaskCard
-              task={draggedItem.data}
-              featureName={getFeatureName(draggedItem.data.featureId)}
-              onEdit={() => { }}
-              onDelete={() => { }}
-            />
-          ) : (
-            <BugCard
-              bug={draggedItem.data}
-              featureName={getFeatureName(draggedItem.data.featureId)}
-              onEdit={() => { }}
-              onDelete={() => { }}
-            />
-          )}
-        </Box>
-      )}
-
+      {/* Floating Action Button */}
       <SpeedDial
-        ariaLabel="Create new item"
-        sx={{ position: 'fixed', bottom: 32, right: 32 }}
+        ariaLabel="Create SpeedDial"
+        sx={{ position: 'fixed', bottom: 16, right: 16 }}
         icon={<SpeedDialIcon />}
       >
         <SpeedDialAction
-          key="task"
-          icon={<TaskIcon />}
-          tooltipTitle="Create Task"
-          onClick={() => handleOpenTaskDialog()}
+          icon={<BugReportIcon color="error" />}
+          tooltipTitle="Report Bug"
+          onClick={() => handleOpenWorkDialog(null, 'BUG')}
         />
         <SpeedDialAction
-          key="bug"
-          icon={<BugReportIcon />}
-          tooltipTitle="Report Bug"
-          onClick={() => handleOpenBugDialog()}
+          icon={<TaskIcon color="primary" />}
+          tooltipTitle="Create Task"
+          onClick={() => handleOpenWorkDialog(null, 'TASK')}
         />
       </SpeedDial>
 
-      <TaskFormDialog
-        open={taskDialogOpen}
-        onClose={handleCloseTaskDialog}
-        onSubmit={handleSubmitTask}
-        task={selectedItem}
+      {/* Work Form Dialog */}
+      <WorkFormDialog
+        open={workDialogOpen}
+        onClose={handleCloseWorkDialog}
+        onSubmit={handleSubmitWork}
+        work={selectedItem}
         features={features}
         ideaId={ideaId}
         loading={actionLoading}
       />
 
-      <BugFormDialog
-        open={bugDialogOpen}
-        onClose={handleCloseBugDialog}
-        onSubmit={handleSubmitBug}
-        bug={selectedItem}
-        features={features}
-        ideaId={ideaId}
-        loading={actionLoading}
-      />
-
+      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
-          <Typography>
-            Are you sure you want to delete this {deleteType}? This action cannot be undone.
-          </Typography>
+          Are you sure you want to delete this item?
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDeleteDialog} disabled={actionLoading}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirmDelete}
-            color="error"
-            variant="contained"
-            disabled={actionLoading}
-          >
-            {actionLoading ? <CircularProgress size={20} /> : 'Delete'}
+          <Button onClick={handleCloseDeleteDialog}>Cancel</Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained" disabled={actionLoading}>
+            Delete
           </Button>
         </DialogActions>
       </Dialog>
 
+      {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={4000}
+        autoHideDuration={6000}
         onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Dragged Card Overlay */}
+      {dragState && draggedItemData && (
+        <Box
+          sx={{
+            position: 'fixed',
+            left: dragPosition.x,
+            top: dragPosition.y,
+            width: 284, // Column width (300) - padding (16)
+            height: CARD_HEIGHT,
+            pointerEvents: 'none',
+            zIndex: 9999,
+            transform: 'translate(-50%, -50%) rotate(3deg)',
+            opacity: 0.9,
+          }}
+        >
+          <WorkCard
+            work={draggedItemData}
+            featureName={getFeatureName(draggedItemData.featureId)}
+            onEdit={() => { }}
+            onDelete={() => { }}
+            onUpdate={() => { }}
+          />
+        </Box>
+      )}
+
+      <UserSelectDialog
+        open={assignUsersOpen}
+        onClose={() => setAssignUsersOpen(false)}
+        users={allUsers}
+        assignedUserIds={idea?.assignedUserIds || []}
+        onSave={handleAssignUsers}
+      />
     </Box>
   );
 };

@@ -42,6 +42,10 @@ class ApiService {
   }
 
   // Ideas
+  async listUsers() {
+    return this.request('listAllUsers');
+  }
+
   async listIdeas() {
     return this.request('listIdeas');
   }
@@ -87,64 +91,40 @@ class ApiService {
     });
   }
 
-  async deleteFeature(id) {
+  async deleteFeature(id, ownerId) {
     return this.request('deleteFeature', {
       method: 'POST',
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id, ownerId }),
     });
   }
 
-  // Tasks
-  async listTasks(featureId) {
-    const params = featureId ? `?featureId=${featureId}` : '';
-    return this.request(`listTasks${params}`);
+  // Works
+  async listWorks(featureId, ideaId) {
+    let params = '';
+    if (featureId) params += `?featureId=${featureId}`;
+    if (ideaId) params += `${params ? '&' : '?'}ideaId=${ideaId}`;
+
+    return this.request(`listWorks${params}`);
   }
 
-  async createTask(data) {
-    return this.request('createTask', {
+  async createWork(data) {
+    return this.request('createWork', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateTask(id, updates) {
-    return this.request('updateTask', {
+  async updateWork(id, updates) {
+    return this.request('updateWork', {
       method: 'POST',
       body: JSON.stringify({ id, ...updates }),
     });
   }
 
-  async deleteTask(id) {
-    return this.request('deleteTask', {
+  async deleteWork(id, ownerId) {
+    return this.request('deleteWork', {
       method: 'POST',
-      body: JSON.stringify({ id }),
-    });
-  }
-
-  // Bugs
-  async listBugs(featureId) {
-    const params = featureId ? `?featureId=${featureId}` : '';
-    return this.request(`listBugs${params}`);
-  }
-
-  async createBug(data) {
-    return this.request('createBug', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateBug(id, updates) {
-    return this.request('updateBug', {
-      method: 'POST',
-      body: JSON.stringify({ id, ...updates }),
-    });
-  }
-
-  async deleteBug(id) {
-    return this.request('deleteBug', {
-      method: 'POST',
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id, ownerId }),
     });
   }
 

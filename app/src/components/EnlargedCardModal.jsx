@@ -51,7 +51,10 @@ const formatTimeAgo = (timestamp) => {
     return `${diffMonths}mo ago`;
 };
 
-const EnlargedCardModal = ({ open, onClose, data, featureName, onUpdate, onDelete, isBug }) => {
+const EnlargedCardModal = ({ open, onClose, data, featureName, onUpdate, onDelete }) => {
+    // Derive isBug from data.type
+    // Check for both 'BUG' (backend enum) and 'bug' (legacy/lowercase)
+    const isBug = data?.type === 'BUG' || data?.type === 'bug';
     const [editingTitle, setEditingTitle] = useState(false);
     const [editingDescription, setEditingDescription] = useState(false);
     const [editedTitle, setEditedTitle] = useState('');
@@ -112,7 +115,7 @@ const EnlargedCardModal = ({ open, onClose, data, featureName, onUpdate, onDelet
 
         setAddingComment(true);
         try {
-            const type = isBug ? 'bugs' : 'tasks';
+            const type = 'works';
 
             const response = await ApiService.addComment(
                 type,
@@ -180,7 +183,7 @@ const EnlargedCardModal = ({ open, onClose, data, featureName, onUpdate, onDelet
         if (!editingCommentText.trim()) return;
 
         try {
-            const type = isBug ? 'bugs' : 'tasks';
+            const type = 'works';
             const response = await ApiService.updateComment(
                 type,
                 data.id,
@@ -207,7 +210,7 @@ const EnlargedCardModal = ({ open, onClose, data, featureName, onUpdate, onDelet
         if (!window.confirm('Are you sure you want to delete this comment?')) return;
 
         try {
-            const type = isBug ? 'bugs' : 'tasks';
+            const type = 'works';
             const response = await ApiService.deleteComment(type, data.id, commentId);
 
             if (response.success) {
@@ -231,41 +234,15 @@ const EnlargedCardModal = ({ open, onClose, data, featureName, onUpdate, onDelet
     };
 
     const handleTypeChange = async (newType) => {
-        const isBugToTask = isBug && newType === 'task';
-        const isTaskToBug = !isBug && newType === 'bug';
-
-        if (!isBugToTask && !isTaskToBug) return;
-
-        if (!window.confirm(`Are you sure you want to convert this ${isBug ? 'bug' : 'task'} to a ${newType}?`)) {
-            return;
-        }
-
+        // Just update the type field
         try {
-            // Create the new item with the same data
-            const newItemData = {
-                title: data.title,
-                description: data.description,
-                status: data.status,
-                featureId: data.featureId,
-                ideaId: data.ideaId,
-                tags: data.tags || [],
-                comments: data.comments || [],
-                creatorName: data.creatorName,
-            };
-
-            if (newType === 'task') {
-                await ApiService.createTask(newItemData);
-                await ApiService.deleteBug(data.id);
-            } else {
-                await ApiService.createBug(newItemData);
-                await ApiService.deleteTask(data.id);
+            const typeValue = newType === 'task' ? 'TASK' : 'BUG';
+            if (onUpdate) {
+                await onUpdate(data.id, { type: typeValue });
             }
-
-            onClose();
-            // The parent component will refresh the data
         } catch (error) {
-            console.error('Error converting type:', error);
-            alert('Failed to convert type');
+            console.error('Error updating type:', error);
+            alert('Failed to update type');
         }
     };
 

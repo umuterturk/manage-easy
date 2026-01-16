@@ -24,8 +24,9 @@ const FeatureCard = ({ feature, onEdit, onDelete }) => {
     navigate(`/features/${feature.id}`);
   };
 
-  const taskCount = feature.tasks?.length || 0;
-  const bugCount = feature.bugs?.length || 0;
+  // Unified work item count
+  // We check workIds first, but fallback to sum of tasks/bugs if not present (though they shouldn't be populated anymore)
+  const workCount = feature.workIds?.length || 0;
 
   return (
     <Card
@@ -104,20 +105,12 @@ const FeatureCard = ({ feature, onEdit, onDelete }) => {
         )}
 
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          {taskCount > 0 && (
+          {workCount > 0 && (
             <Chip
-              label={`${taskCount} task${taskCount !== 1 ? 's' : ''}`}
+              label={`${workCount} item${workCount !== 1 ? 's' : ''}`}
               size="small"
               variant="outlined"
-              color="primary"
-            />
-          )}
-          {bugCount > 0 && (
-            <Chip
-              label={`${bugCount} bug${bugCount !== 1 ? 's' : ''}`}
-              size="small"
-              variant="outlined"
-              color="error"
+              color="default"
             />
           )}
         </Box>

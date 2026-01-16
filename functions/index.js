@@ -54,6 +54,35 @@ function sendError(res, statusCode, message) {
   });
 }
 
+// ============== USERS ==============
+
+exports.listAllUsers = onRequest(async (req, res) => {
+  try {
+    await validateToken(req);
+
+    // List batch of users, 1000 at a time.
+    const listUsersResult = await admin.auth().listUsers(1000);
+
+    const users = listUsersResult.users.map(userRecord => ({
+      uid: userRecord.uid,
+      email: userRecord.email,
+      displayName: userRecord.displayName,
+      photoURL: userRecord.photoURL,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      users,
+    });
+  } catch (error) {
+    console.error("Error listing users:", error);
+    if (error.code === "auth/invalid-token") {
+      return sendError(res, 401, "Invalid token");
+    }
+    return sendError(res, 500, error.message);
+  }
+});
+
 // ============== IDEAS ==============
 
 exports.createIdea = onRequest(async (req, res) => {
@@ -74,6 +103,7 @@ exports.createIdea = onRequest(async (req, res) => {
         tags: tags || [],
         status: "CREATED",
         featureIds: [],
+        assignedUserIds: [], // Added
         createdBy: userId,
         createdAt: getTimestamp(),
         updatedAt: getTimestamp(),
@@ -97,16 +127,47 @@ exports.listIdeas = onRequest(async (req, res) => {
   try {
     const userId = await validateToken(req);
 
-    const snapshot = await db.collection("users")
+    // 1. Get my own ideas
+    const myIdeasPromise = db.collection("users")
       .doc(userId)
       .collection("ideas")
       .orderBy("createdAt", "desc")
       .get();
 
-    const ideas = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    // 2. Get ideas assigned to me (using Collection Group Query)
+    const assignedIdeasPromise = db.collectionGroup("ideas")
+      .where("assignedUserIds", "array-contains", userId)
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const [myIdeasSnapshot, assignedIdeasSnapshot] = await Promise.all([
+      myIdeasPromise,
+      assignedIdeasPromise
+    ]);
+
+    // Combine and deduplicate by ID
+    const ideasMap = new Map();
+
+    const processDoc = (doc) => {
+      // Extract ownerId from the document path: users/{ownerId}/ideas/{ideaId}
+      const ownerId = doc.ref.parent.parent ? doc.ref.parent.parent.id : userId;
+
+      ideasMap.set(doc.id, {
+        id: doc.id,
+        ownerId,
+        ...doc.data(),
+      });
+    };
+
+    myIdeasSnapshot.docs.forEach(processDoc);
+    assignedIdeasSnapshot.docs.forEach(processDoc);
+
+    // Convert map to array and sort by createdAt (descending)
+    const ideas = Array.from(ideasMap.values()).sort((a, b) => {
+      const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
+      const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
+      return dateB - dateA; // Descending
+    });
 
     return res.status(200).json({
       success: true,
@@ -124,7 +185,7 @@ exports.listIdeas = onRequest(async (req, res) => {
 exports.updateIdea = onRequest(async (req, res) => {
   try {
     const userId = await validateToken(req);
-    const { id, title, description, status, tags } = req.body;
+    const { id, title, description, status, tags, ownerId } = req.body;
 
     if (!id) {
       return sendError(res, 400, "Idea ID is required");
@@ -137,6 +198,7 @@ exports.updateIdea = onRequest(async (req, res) => {
     if (title !== undefined) updates.title = title;
     if (description !== undefined) updates.description = description;
     if (tags !== undefined) updates.tags = tags;
+    if (req.body.assignedUserIds !== undefined) updates.assignedUserIds = req.body.assignedUserIds;
     if (status !== undefined) {
       const validStatuses = ["CREATED", "TODO", "IN_PROGRESS", "DONE"];
       if (!validStatuses.includes(status)) {
@@ -145,8 +207,10 @@ exports.updateIdea = onRequest(async (req, res) => {
       updates.status = status;
     }
 
+    const targetUserId = ownerId || userId;
+
     await db.collection("users")
-      .doc(userId)
+      .doc(targetUserId)
       .collection("ideas")
       .doc(id)
       .update(updates);
@@ -213,8 +277,7 @@ exports.createFeature = onRequest(async (req, res) => {
         tags: tags || [],
         status: "CREATED",
         archived: false,
-        taskIds: [],
-        bugIds: [],
+        workIds: [],
         createdBy: userId,
         createdAt: getTimestamp(),
         updatedAt: getTimestamp(),
@@ -249,21 +312,32 @@ exports.listFeatures = onRequest(async (req, res) => {
     const userId = await validateToken(req);
     const { ideaId } = req.query;
 
-    let query = db.collection("users")
-      .doc(userId)
-      .collection("features")
-      .where("archived", "==", false);
-
+    let snapshot;
     if (ideaId) {
-      query = query.where("ideaId", "==", ideaId);
+      // query all features for this idea (across all users)
+      snapshot = await db.collectionGroup("features")
+        .where("ideaId", "==", ideaId)
+        .where("archived", "==", false)
+        .orderBy("createdAt", "desc")
+        .get();
+    } else {
+      // Fallback to my features if no ideaId provided
+      snapshot = await db.collection("users")
+        .doc(userId)
+        .collection("features")
+        .where("archived", "==", false)
+        .orderBy("createdAt", "desc")
+        .get();
     }
 
-    const snapshot = await query.orderBy("createdAt", "desc").get();
-
-    const features = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const features = snapshot.docs.map((doc) => {
+      const ownerId = doc.ref.parent.parent ? doc.ref.parent.parent.id : userId;
+      return {
+        id: doc.id,
+        ownerId,
+        ...doc.data(),
+      };
+    });
 
     return res.status(200).json({
       success: true,
@@ -281,7 +355,7 @@ exports.listFeatures = onRequest(async (req, res) => {
 exports.updateFeature = onRequest(async (req, res) => {
   try {
     const userId = await validateToken(req);
-    const { id, title, description, status, tags, archived } = req.body;
+    const { id, title, description, status, tags, archived, ownerId } = req.body;
 
     if (!id) {
       return sendError(res, 400, "Feature ID is required");
@@ -303,8 +377,10 @@ exports.updateFeature = onRequest(async (req, res) => {
       updates.status = status;
     }
 
+    const targetUserId = ownerId || userId;
+
     await db.collection("users")
-      .doc(userId)
+      .doc(targetUserId)
       .collection("features")
       .doc(id)
       .update(updates);
@@ -376,40 +452,50 @@ exports.deleteFeature = onRequest(async (req, res) => {
 
 // ============== TASKS ==============
 
-exports.createTask = onRequest(async (req, res) => {
+// ============== WORKS ==============
+
+exports.createWork = onRequest(async (req, res) => {
   try {
     const userId = await validateToken(req);
-    const { ideaId, featureId, title, description, creatorName, status, tags } = req.body;
+    const { ideaId, featureId, title, description, creatorName, status, type, tags, order, ownerId } = req.body;
 
     if (!title) {
       return sendError(res, 400, "Title is required");
     }
 
-    const taskStatus = status || "CREATED";
+    const workStatus = status || "CREATED";
+    const workType = type || "TASK"; // Default to TASK
 
-    // Get the highest order for tasks in this idea/status to place new task at the end
-    const existingTasks = await db.collection("users")
-      .doc(userId)
-      .collection("tasks")
-      .where("ideaId", "==", ideaId || null)
-      .where("status", "==", taskStatus)
-      .orderBy("order", "desc")
-      .limit(1)
-      .get();
+    const targetUserId = ownerId || userId;
 
-    const maxOrder = existingTasks.empty ? 0 : (existingTasks.docs[0].data().order || 0);
+    // If order is not provided, find the max order
+    let workOrder = order;
+    if (workOrder === undefined) {
+      const existingWorks = await db.collection("users")
+        .doc(targetUserId)
+        .collection("works")
+        .where("ideaId", "==", ideaId || null)
+        .where("status", "==", workStatus)
+        .orderBy("order", "desc")
+        .limit(1)
+        .get();
 
-    const taskRef = await db.collection("users")
-      .doc(userId)
-      .collection("tasks")
+      const maxOrder = existingWorks.empty ? 0 : (existingWorks.docs[0].data().order || 0);
+      workOrder = maxOrder + 1;
+    }
+
+    const workRef = await db.collection("users")
+      .doc(targetUserId)
+      .collection("works")
       .add({
         ideaId: ideaId || null,
         featureId: featureId || null,
         title,
         description: description || "",
+        type: workType,
         tags: tags || [],
-        status: taskStatus,
-        order: maxOrder + 1,
+        status: workStatus,
+        order: workOrder,
         archived: false,
         createdBy: userId,
         creatorName: creatorName || "",
@@ -417,25 +503,25 @@ exports.createTask = onRequest(async (req, res) => {
         updatedAt: getTimestamp(),
       });
 
-    // Update feature's taskIds
+    // Update feature's workIds
     if (featureId) {
       await db.collection("users")
-        .doc(userId)
+        .doc(targetUserId)
         .collection("features")
         .doc(featureId)
         .update({
-          taskIds: arrayUnion(taskRef.id),
+          workIds: arrayUnion(workRef.id),
           updatedAt: getTimestamp(),
         });
     }
 
     return res.status(201).json({
       success: true,
-      id: taskRef.id,
-      message: "Task created successfully",
+      id: workRef.id,
+      message: "Work created successfully",
     });
   } catch (error) {
-    console.error("Error creating task:", error);
+    console.error("Error creating work:", error);
     if (error.code === "auth/invalid-token") {
       return sendError(res, 401, "Invalid token");
     }
@@ -443,33 +529,49 @@ exports.createTask = onRequest(async (req, res) => {
   }
 });
 
-exports.listTasks = onRequest(async (req, res) => {
+exports.listWorks = onRequest(async (req, res) => {
   try {
     const userId = await validateToken(req);
-    const { featureId } = req.query;
+    const { featureId, ideaId } = req.query;
 
-    let query = db.collection("users")
-      .doc(userId)
-      .collection("tasks")
-      .where("archived", "==", false);
+    let snapshot;
 
-    if (featureId) {
-      query = query.where("featureId", "==", featureId);
+    // Build Query
+    // Use Collection Group if filtering by featureId or ideaId (Shared Access)
+    if (featureId || ideaId) {
+      let query = db.collectionGroup("works").where("archived", "==", false);
+
+      if (featureId) {
+        query = query.where("featureId", "==", featureId);
+      }
+      if (ideaId) {
+        query = query.where("ideaId", "==", ideaId);
+      }
+
+      snapshot = await query.get();
+    } else {
+      // Fallback to my works
+      snapshot = await db.collection("users")
+        .doc(userId)
+        .collection("works")
+        .where("archived", "==", false)
+        .get();
     }
 
-    const snapshot = await query.get();
+    const works = snapshot.docs.map((doc) => {
+      const ownerId = doc.ref.parent.parent ? doc.ref.parent.parent.id : userId;
+      return {
+        id: doc.id,
+        ownerId,
+        ...doc.data(),
+      };
+    });
 
-    const tasks = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    // Sort by order (ascending), fallback to createdAt for items without order
-    tasks.sort((a, b) => {
+    // Sort by order (ascending), fallback to createdAt
+    works.sort((a, b) => {
       const orderA = a.order ?? Number.MAX_SAFE_INTEGER;
       const orderB = b.order ?? Number.MAX_SAFE_INTEGER;
       if (orderA !== orderB) return orderA - orderB;
-      // Fallback to createdAt if order is the same
       const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
       const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
       return dateA - dateB;
@@ -477,10 +579,10 @@ exports.listTasks = onRequest(async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      tasks,
+      works,
     });
   } catch (error) {
-    console.error("Error listing tasks:", error);
+    console.error("Error listing works:", error);
     if (error.code === "auth/invalid-token") {
       return sendError(res, 401, "Invalid token");
     }
@@ -488,13 +590,14 @@ exports.listTasks = onRequest(async (req, res) => {
   }
 });
 
-exports.updateTask = onRequest(async (req, res) => {
+exports.updateWork = onRequest(async (req, res) => {
   try {
     const userId = await validateToken(req);
-    const { id, title, description, status, featureId, order, tags, archived } = req.body;
+    // Added 'type' to allowed updates
+    const { id, title, description, status, type, featureId, order, tags, archived, comments, ownerId } = req.body;
 
     if (!id) {
-      return sendError(res, 400, "Task ID is required");
+      return sendError(res, 400, "Work ID is required");
     }
 
     const updates = {
@@ -507,6 +610,9 @@ exports.updateTask = onRequest(async (req, res) => {
     if (featureId !== undefined) updates.featureId = featureId;
     if (order !== undefined) updates.order = order;
     if (archived !== undefined) updates.archived = archived;
+    if (type !== undefined) updates.type = type;
+    if (comments !== undefined) updates.comments = comments;
+
     if (status !== undefined) {
       const validStatuses = ["CREATED", "TODO", "IN_PROGRESS", "DONE"];
       if (!validStatuses.includes(status)) {
@@ -515,18 +621,20 @@ exports.updateTask = onRequest(async (req, res) => {
       updates.status = status;
     }
 
+    const targetUserId = ownerId || userId;
+
     await db.collection("users")
-      .doc(userId)
-      .collection("tasks")
+      .doc(targetUserId)
+      .collection("works")
       .doc(id)
       .update(updates);
 
     return res.status(200).json({
       success: true,
-      message: "Task updated successfully",
+      message: "Work updated successfully",
     });
   } catch (error) {
-    console.error("Error updating task:", error);
+    console.error("Error updating work:", error);
     if (error.code === "auth/invalid-token") {
       return sendError(res, 401, "Invalid token");
     }
@@ -534,53 +642,55 @@ exports.updateTask = onRequest(async (req, res) => {
   }
 });
 
-exports.deleteTask = onRequest(async (req, res) => {
+exports.deleteWork = onRequest(async (req, res) => {
   try {
     const userId = await validateToken(req);
-    const { id } = req.body;
+    const { id, ownerId } = req.body;
 
     if (!id) {
-      return sendError(res, 400, "Task ID is required");
+      return sendError(res, 400, "Work ID is required");
     }
 
-    // Get the task to know which feature to update
-    const taskDoc = await db.collection("users")
-      .doc(userId)
-      .collection("tasks")
+    const targetUserId = ownerId || userId;
+
+    // Get the work to know which feature to update
+    const workDoc = await db.collection("users")
+      .doc(targetUserId)
+      .collection("works")
       .doc(id)
       .get();
 
-    if (!taskDoc.exists) {
-      return sendError(res, 404, "Task not found");
+    if (!workDoc.exists) {
+      return sendError(res, 404, "Work not found");
     }
 
-    const featureId = taskDoc.data().featureId;
+    const featureId = workDoc.data().featureId;
 
-    // Delete the task
+    // Delete the work
     await db.collection("users")
-      .doc(userId)
-      .collection("tasks")
+      .doc(targetUserId)
+      .collection("works")
       .doc(id)
       .delete();
 
-    // Remove from feature's taskIds only if featureId exists
+    // Remove from feature's workIds only if featureId exists
     if (featureId) {
       await db.collection("users")
-        .doc(userId)
+        .doc(targetUserId)
         .collection("features")
         .doc(featureId)
         .update({
-          taskIds: arrayRemove(id),
+          workIds: arrayRemove(id),
           updatedAt: getTimestamp(),
         });
     }
 
     return res.status(200).json({
       success: true,
-      message: "Task deleted successfully",
+      message: "Work deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting task:", error);
+    console.error("Error deleting work:", error);
     if (error.code === "auth/invalid-token") {
       return sendError(res, 401, "Invalid token");
     }
@@ -588,159 +698,47 @@ exports.deleteTask = onRequest(async (req, res) => {
   }
 });
 
-// ============== BUGS ==============
+// ============== COMMENTS ==============
 
-exports.createBug = onRequest(async (req, res) => {
+exports.addComment = onRequest(async (req, res) => {
   try {
     const userId = await validateToken(req);
-    const { ideaId, featureId, title, description, creatorName, status, tags } = req.body;
+    const { entityType, entityId, text, authorName } = req.body;
 
-    if (!title) {
-      return sendError(res, 400, "Title is required");
+    if (!entityId || !text) {
+      return sendError(res, 400, "Entity ID and text are required");
     }
 
-    const bugStatus = status || "CREATED";
+    const collectionName = (entityType === 'works') ? 'works' : entityType;
 
-    // Get the highest order for bugs in this idea/status to place new bug at the end
-    const existingBugs = await db.collection("users")
-      .doc(userId)
-      .collection("bugs")
-      .where("ideaId", "==", ideaId || null)
-      .where("status", "==", bugStatus)
-      .orderBy("order", "desc")
-      .limit(1)
-      .get();
+    // Create a new comment object with its own ID
+    const commentId = Math.random().toString(36).substring(2, 15);
 
-    const maxOrder = existingBugs.empty ? 0 : (existingBugs.docs[0].data().order || 0);
-
-    const bugRef = await db.collection("users")
-      .doc(userId)
-      .collection("bugs")
-      .add({
-        ideaId: ideaId || null,
-        featureId: featureId || null,
-        title,
-        description: description || "",
-        tags: tags || [],
-        status: bugStatus,
-        order: maxOrder + 1,
-        archived: false,
-        createdBy: userId,
-        creatorName: creatorName || "",
-        createdAt: getTimestamp(),
-        updatedAt: getTimestamp(),
-      });
-
-    // Update feature's bugIds only if featureId provided
-    if (featureId) {
-      await db.collection("users")
-        .doc(userId)
-        .collection("features")
-        .doc(featureId)
-        .update({
-          bugIds: arrayUnion(bugRef.id),
-          updatedAt: getTimestamp(),
-        });
-    }
-
-    return res.status(201).json({
-      success: true,
-      id: bugRef.id,
-      message: "Bug created successfully",
-    });
-  } catch (error) {
-    console.error("Error creating bug:", error);
-    if (error.code === "auth/invalid-token") {
-      return sendError(res, 401, "Invalid token");
-    }
-    return sendError(res, 500, error.message);
-  }
-});
-
-exports.listBugs = onRequest(async (req, res) => {
-  try {
-    const userId = await validateToken(req);
-    const { featureId } = req.query;
-
-    let query = db.collection("users")
-      .doc(userId)
-      .collection("bugs")
-      .where("archived", "==", false);
-
-    if (featureId) {
-      query = query.where("featureId", "==", featureId);
-    }
-
-    const snapshot = await query.get();
-
-    const bugs = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    // Sort by order (ascending), fallback to createdAt for items without order
-    bugs.sort((a, b) => {
-      const orderA = a.order ?? Number.MAX_SAFE_INTEGER;
-      const orderB = b.order ?? Number.MAX_SAFE_INTEGER;
-      if (orderA !== orderB) return orderA - orderB;
-      // Fallback to createdAt if order is the same
-      const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
-      const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
-      return dateA - dateB;
-    });
-
-    return res.status(200).json({
-      success: true,
-      bugs,
-    });
-  } catch (error) {
-    console.error("Error listing bugs:", error);
-    if (error.code === "auth/invalid-token") {
-      return sendError(res, 401, "Invalid token");
-    }
-    return sendError(res, 500, error.message);
-  }
-});
-
-exports.updateBug = onRequest(async (req, res) => {
-  try {
-    const userId = await validateToken(req);
-    const { id, title, description, status, featureId, order, tags, archived } = req.body;
-
-    if (!id) {
-      return sendError(res, 400, "Bug ID is required");
-    }
-
-    const updates = {
+    const comment = {
+      id: commentId,
+      text,
+      authorId: userId,
+      authorName: authorName || "Unknown",
+      createdAt: getTimestamp(),
       updatedAt: getTimestamp(),
     };
 
-    if (title !== undefined) updates.title = title;
-    if (description !== undefined) updates.description = description;
-    if (tags !== undefined) updates.tags = tags;
-    if (featureId !== undefined) updates.featureId = featureId;
-    if (order !== undefined) updates.order = order;
-    if (archived !== undefined) updates.archived = archived;
-    if (status !== undefined) {
-      const validStatuses = ["CREATED", "TODO", "IN_PROGRESS", "DONE"];
-      if (!validStatuses.includes(status)) {
-        return sendError(res, 400, "Invalid status");
-      }
-      updates.status = status;
-    }
-
     await db.collection("users")
       .doc(userId)
-      .collection("bugs")
-      .doc(id)
-      .update(updates);
+      .collection(collectionName)
+      .doc(entityId)
+      .update({
+        comments: arrayUnion(comment),
+        updatedAt: getTimestamp(),
+      });
 
-    return res.status(200).json({
+    return res.status(201).json({
       success: true,
-      message: "Bug updated successfully",
+      comment,
+      message: "Comment added successfully",
     });
   } catch (error) {
-    console.error("Error updating bug:", error);
+    console.error("Error adding comment:", error);
     if (error.code === "auth/invalid-token") {
       return sendError(res, 401, "Invalid token");
     }
@@ -748,53 +746,105 @@ exports.updateBug = onRequest(async (req, res) => {
   }
 });
 
-exports.deleteBug = onRequest(async (req, res) => {
+exports.updateComment = onRequest(async (req, res) => {
   try {
     const userId = await validateToken(req);
-    const { id } = req.body;
+    const { entityType, entityId, commentId, text } = req.body;
 
-    if (!id) {
-      return sendError(res, 400, "Bug ID is required");
+    if (!entityId || !commentId || !text) {
+      return sendError(res, 400, "Required fields missing");
     }
 
-    // Get the bug to know which feature to update
-    const bugDoc = await db.collection("users")
+    const collectionName = (entityType === 'works') ? 'works' : entityType;
+
+    const docRef = db.collection("users")
       .doc(userId)
-      .collection("bugs")
-      .doc(id)
-      .get();
+      .collection(collectionName)
+      .doc(entityId);
 
-    if (!bugDoc.exists) {
-      return sendError(res, 404, "Bug not found");
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return sendError(res, 404, "Entity not found");
     }
 
-    const featureId = bugDoc.data().featureId;
+    const comments = doc.data().comments || [];
+    const commentIndex = comments.findIndex(c => c.id === commentId);
 
-    // Delete the bug
-    await db.collection("users")
-      .doc(userId)
-      .collection("bugs")
-      .doc(id)
-      .delete();
-
-    // Remove from feature's bugIds only if featureId exists
-    if (featureId) {
-      await db.collection("users")
-        .doc(userId)
-        .collection("features")
-        .doc(featureId)
-        .update({
-          bugIds: arrayRemove(id),
-          updatedAt: getTimestamp(),
-        });
+    if (commentIndex === -1) {
+      return sendError(res, 404, "Comment not found");
     }
+
+    if (comments[commentIndex].authorId !== userId) {
+      return sendError(res, 403, "Not authorized to edit this comment");
+    }
+
+    comments[commentIndex].text = text;
+    comments[commentIndex].updatedAt = getTimestamp();
+
+    await docRef.update({
+      comments,
+      updatedAt: getTimestamp(),
+    });
 
     return res.status(200).json({
       success: true,
-      message: "Bug deleted successfully",
+      message: "Comment updated successfully",
     });
   } catch (error) {
-    console.error("Error deleting bug:", error);
+    console.error("Error updating comment:", error);
+    if (error.code === "auth/invalid-token") {
+      return sendError(res, 401, "Invalid token");
+    }
+    return sendError(res, 500, error.message);
+  }
+});
+
+exports.deleteComment = onRequest(async (req, res) => {
+  try {
+    const userId = await validateToken(req);
+    const { entityType, entityId, commentId } = req.body;
+
+    if (!entityId || !commentId) {
+      return sendError(res, 400, "Required fields missing");
+    }
+
+    const collectionName = (entityType === 'works') ? 'works' : entityType;
+
+    const docRef = db.collection("users")
+      .doc(userId)
+      .collection(collectionName)
+      .doc(entityId);
+
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      return sendError(res, 404, "Entity not found");
+    }
+
+    const comments = doc.data().comments || [];
+    const comment = comments.find(c => c.id === commentId);
+
+    if (!comment) {
+      return sendError(res, 404, "Comment not found");
+    }
+
+    if (comment.authorId !== userId) {
+      return sendError(res, 403, "Not authorized to delete this comment");
+    }
+
+    // Filter out the comment
+    const updatedComments = comments.filter(c => c.id !== commentId);
+
+    await docRef.update({
+      comments: updatedComments,
+      updatedAt: getTimestamp(),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Comment deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting comment:", error);
     if (error.code === "auth/invalid-token") {
       return sendError(res, 401, "Invalid token");
     }
