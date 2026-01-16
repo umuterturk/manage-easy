@@ -1,4 +1,4 @@
-const { onRequest } = require("firebase-functions/v2/https");
+const { onRequest: baseOnRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const { FieldValue } = require("firebase-admin/firestore");
 
@@ -53,6 +53,40 @@ function sendError(res, statusCode, message) {
     error: message,
   });
 }
+
+const cors = require('cors')({ origin: true });
+
+// Custom onRequest wrapper to force CORS
+const onRequest = (optsOrHandler, handler) => {
+  let opts = {};
+  let func = handler;
+  if (typeof optsOrHandler === 'function') {
+    func = optsOrHandler;
+    opts = {};
+  } else {
+    opts = { ...optsOrHandler };
+  }
+
+  // Remove declaritive cors to avoid conflict
+  delete opts.cors;
+
+  return baseOnRequest(opts, (req, res) => {
+    return new Promise((resolve, reject) => {
+      cors(req, res, async () => {
+        try {
+          await func(req, res);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
+      // Handle OPTIONS (preflight) where next is not called
+      if (req.method === 'OPTIONS') {
+        resolve();
+      }
+    });
+  });
+};
 
 // ============== USERS ==============
 
