@@ -56,7 +56,7 @@ function sendError(res, statusCode, message) {
 
 // ============== USERS ==============
 
-exports.listAllUsers = onRequest(async (req, res) => {
+exports.listAllUsers = onRequest({ cors: true }, async (req, res) => {
   try {
     await validateToken(req);
 
@@ -85,7 +85,7 @@ exports.listAllUsers = onRequest(async (req, res) => {
 
 // ============== IDEAS ==============
 
-exports.createIdea = onRequest(async (req, res) => {
+exports.createIdea = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { title, description, tags } = req.body;
@@ -123,7 +123,7 @@ exports.createIdea = onRequest(async (req, res) => {
   }
 });
 
-exports.listIdeas = onRequest(async (req, res) => {
+exports.listIdeas = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
 
@@ -182,7 +182,7 @@ exports.listIdeas = onRequest(async (req, res) => {
   }
 });
 
-exports.updateIdea = onRequest(async (req, res) => {
+exports.updateIdea = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { id, title, description, status, tags, ownerId } = req.body;
@@ -228,7 +228,7 @@ exports.updateIdea = onRequest(async (req, res) => {
   }
 });
 
-exports.deleteIdea = onRequest(async (req, res) => {
+exports.deleteIdea = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { id } = req.body;
@@ -258,7 +258,7 @@ exports.deleteIdea = onRequest(async (req, res) => {
 
 // ============== FEATURES ==============
 
-exports.createFeature = onRequest(async (req, res) => {
+exports.createFeature = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { ideaId, title, description, tags } = req.body;
@@ -307,7 +307,7 @@ exports.createFeature = onRequest(async (req, res) => {
   }
 });
 
-exports.listFeatures = onRequest(async (req, res) => {
+exports.listFeatures = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { ideaId } = req.query;
@@ -352,7 +352,7 @@ exports.listFeatures = onRequest(async (req, res) => {
   }
 });
 
-exports.updateFeature = onRequest(async (req, res) => {
+exports.updateFeature = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { id, title, description, status, tags, archived, ownerId } = req.body;
@@ -398,7 +398,7 @@ exports.updateFeature = onRequest(async (req, res) => {
   }
 });
 
-exports.deleteFeature = onRequest(async (req, res) => {
+exports.deleteFeature = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { id } = req.body;
@@ -454,7 +454,7 @@ exports.deleteFeature = onRequest(async (req, res) => {
 
 // ============== WORKS ==============
 
-exports.createWork = onRequest(async (req, res) => {
+exports.createWork = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { ideaId, featureId, title, description, creatorName, status, type, tags, order, ownerId } = req.body;
@@ -529,7 +529,7 @@ exports.createWork = onRequest(async (req, res) => {
   }
 });
 
-exports.listWorks = onRequest(async (req, res) => {
+exports.listWorks = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { featureId, ideaId } = req.query;
@@ -590,7 +590,7 @@ exports.listWorks = onRequest(async (req, res) => {
   }
 });
 
-exports.updateWork = onRequest(async (req, res) => {
+exports.updateWork = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     // Added 'type' to allowed updates
@@ -642,7 +642,7 @@ exports.updateWork = onRequest(async (req, res) => {
   }
 });
 
-exports.deleteWork = onRequest(async (req, res) => {
+exports.deleteWork = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { id, ownerId } = req.body;
@@ -700,7 +700,7 @@ exports.deleteWork = onRequest(async (req, res) => {
 
 // ============== COMMENTS ==============
 
-exports.addComment = onRequest(async (req, res) => {
+exports.addComment = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { entityType, entityId, text, authorName } = req.body;
@@ -746,7 +746,7 @@ exports.addComment = onRequest(async (req, res) => {
   }
 });
 
-exports.updateComment = onRequest(async (req, res) => {
+exports.updateComment = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { entityType, entityId, commentId, text } = req.body;
@@ -799,7 +799,7 @@ exports.updateComment = onRequest(async (req, res) => {
   }
 });
 
-exports.deleteComment = onRequest(async (req, res) => {
+exports.deleteComment = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { entityType, entityId, commentId } = req.body;
@@ -852,7 +852,7 @@ exports.deleteComment = onRequest(async (req, res) => {
   }
 });
 // ============== COMMENTS ==============
-exports.addComment = onRequest(async (req, res) => {
+exports.addComment = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { entityType, entityId, text, authorName } = req.body;
@@ -897,7 +897,7 @@ exports.addComment = onRequest(async (req, res) => {
   }
 });
 
-exports.updateComment = onRequest(async (req, res) => {
+exports.updateComment = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { entityType, entityId, commentId, text } = req.body;
@@ -944,7 +944,7 @@ exports.updateComment = onRequest(async (req, res) => {
   }
 });
 
-exports.deleteComment = onRequest(async (req, res) => {
+exports.deleteComment = onRequest({ cors: true }, async (req, res) => {
   try {
     const userId = await validateToken(req);
     const { entityType, entityId, commentId } = req.body;

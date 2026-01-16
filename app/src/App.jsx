@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LayoutProvider } from './contexts/LayoutContext';
@@ -151,7 +151,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <BrowserRouter basename="/manage-easy">
+      <HashRouter>
         <AuthProvider>
           <SettingsProvider>
             <LayoutProvider>
@@ -159,7 +159,7 @@ function App() {
             </LayoutProvider>
           </SettingsProvider>
         </AuthProvider>
-      </BrowserRouter>
+      </HashRouter>
     </ThemeProvider>
   );
 }
