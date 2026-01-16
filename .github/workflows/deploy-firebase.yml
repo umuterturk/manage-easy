@@ -1,0 +1,39 @@
+name: Deploy to Firebase
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'functions/**'
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+      - 'firebase.json'
+  workflow_dispatch:
+
+jobs:
+  deploy_firebase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install Functions Dependencies
+        run: |
+          cd functions
+          npm ci
+
+      - name: Deploy to Firebase
+        uses: firebase/firebase-tools-action@v2
+        with:
+          args: deploy --only functions,firestore
+        env:
+          FIREBASE_SERVICE_ACCOUNT_MANAGE_EASY_1768423759: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MANAGE_EASY_1768423759 }}
+          PROJECT_ID: manage-easy-1768423759
