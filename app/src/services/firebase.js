@@ -20,14 +20,20 @@ const auth = getAuth(app);
 // Initialize Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
 
+// Initialize Firestore
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+
+const db = getFirestore(app);
+
 // Connect to emulator in development mode
 if (import.meta.env.DEV) {
   try {
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    connectFirestoreEmulator(db, '127.0.0.1', 8080);
   } catch (error) {
     // Already connected, ignore
   }
 }
 
-export { auth, googleProvider };
+export { auth, googleProvider, db };
 export default app;
