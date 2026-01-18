@@ -36,6 +36,16 @@ service cloud.firestore {
       match /bugs/{bugId} {
         allow read, write: if isOwner(userId);
       }
+
+      // Works belonging to this user
+      match /works/{workId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Collection Group Query for works (allows searching across all users)
+    match /{path=**}/works/{workId} {
+      allow read: if isAuthenticated();
     }
   }
 }
