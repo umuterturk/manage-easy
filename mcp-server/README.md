@@ -1,55 +1,98 @@
 # Manage Easy MCP Server
 
-This is a Model Context Protocol (MCP) server for the Manage Easy application. It enables AI assistants to interact with the Manage Easy backend (Firehost Cloud Functions).
+A Model Context Protocol (MCP) server that connects AI assistants (like Claude) to the Manage Easy capabilities. It allows you to manage ideas, features, and works (tasks/bugs).
+
+## Features
+
+- **Resources**: Direct access to ideas, features, and works via `idea://`, `feature://`, and `work://` URIs.
+- **Tools**: List, create, and search for ideas, features, and works.
+
+## Prerequisites
+
+- Node.js (v18 or higher)
+- A Manage Easy account (or at least access to the Firebase project)
+
+## Installation
+
+1. Navigate to the server directory:
+   ```bash
+   cd mcp-server
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Build the server:
+   ```bash
+   npm run build
+   ```
 
 ## Configuration
 
-This server requires the following environment variable:
+The server requires a Firebase Token to authenticate requests.
 
-- `MCP_FIREBASE_TOKEN`: A valid Firebase ID token or API Key (starting with `me_sk_`).
-- `MCP_API_URL` (Optional): Override the base API URL (default: Production Cloud Functions).
+1. **Obtain a Token**:
+   - Only `me_sk_` API keys are currently supported for direct server access.
+   - If you don't have one, you'll need one generated from the backend (or ask the admin).
+   - Alternatively, for local dev, you can use a valid Firebase ID token if you catch one, but API keys are persistent.
 
-## Tools
+## Usage
 
-The server exposes the following tools to interact with the system:
+### 1. Using with Claude Desktop (Stdio)
 
-### Reading Data
-- `list_ideas`: List all ideas. Supports filtering by tag.
-- `list_features`: List features. Supports filtering by `ideaId` or `tag`.
-- `list_works`: List works (tasks/bugs). Supports filtering by `ideaId`, `featureId`, or `tag`.
+To use this server with the Claude Desktop app:
 
-### Writing Data
-- `create_idea`: Create a new idea with a title, description, and tags.
-- `create_feature`: Create a new feature bound to an idea.
-- `create_work`: Create a new work item (Task or Bug). Must be bound to an Idea or Feature.
+1. Open your Claude Desktop configuration file:
+   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
 
-## Resources
+2. Add the following to the `mcpServers` object:
 
-Direct resource access is available via the following URI schemes:
+   ```json
+   {
+     "mcpServers": {
+       "manage-easy": {
+         "command": "node",
+         "args": ["/absolute/path/to/manage-easy/mcp-server/build/index.js"],
+         "env": {
+           "MCP_FIREBASE_TOKEN": "your_api_key_here"
+         }
+       }
+     }
+   }
+   ```
 
-- `idea://{id}`: Get details of a specific idea.
-- `feature://{id}`: Get details of a specific feature.
-- `work://{id}`: Get details of a specific work item.
+   **Important**: Replace `/absolute/path/to/...` with the full path to your project directory.
 
-## Development
+3. Restart Claude Desktop.
 
-### Build
-```bash
-npm install
-npm run build
-```
+### 2. Using via HTTP (SSE)
 
-### Run (Local / Stdio)
-Use this mode for local development with Claude Desktop or other local clients.
-```bash
-npm start
-```
+Use this mode to deploy the server remotely (e.g., Render, Railway) or access it over HTTP.
 
-### Run (Server / SSE)
-Use this mode to deploy the server (e.g., to Render, Railway, or a VPS).
-```bash
-npm run serve
-```
-The server will start on port `8080` (or `$PORT`).
-- SSE URL: `http://your-domain.com/sse`
-- POST URL: `http://your-domain.com/messages`
+1. Start the server:
+   ```bash
+   export MCP_FIREBASE_TOKEN=your_api_key_here
+   npm run serve
+   ```
+
+2. The server will start on port `8080`.
+   - **SSE Endpoint**: `http://localhost:8080/sse`
+   - **POST Endpoint**: `http://localhost:8080/messages`
+
+## API Reference
+
+### Tools
+- `list_ideas(tag?)`
+- `list_features(ideaId?, tag?)`
+- `list_works(ideaId?, featureId?, tag?)`
+- `create_idea(title, description?, tags?)`
+- `create_feature(ideaId, title, description?, tags?)`
+- `create_work(title, description?, type, status, featureId?, ideaId?, tags?)`
+
+### Resources
+- `idea://{id}`
+- `feature://{id}`
+- `work://{id}`
