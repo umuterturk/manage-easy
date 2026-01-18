@@ -12,7 +12,8 @@ import { z } from "zod";
 // --- Configuration ---
 // Token should be passed as env var: MCP_FIREBASE_TOKEN
 const FIREBASE_TOKEN = process.env.MCP_FIREBASE_TOKEN;
-const API_BASE_URL = "http://127.0.0.1:5001/manage-easy-1768423759/us-central1"; // Local Emulator for now
+// Default to Production URL, but allow override for local testing
+const API_BASE_URL = process.env.MCP_API_URL || "https://us-central1-manage-easy-1768423759.cloudfunctions.net";
 
 if (!FIREBASE_TOKEN) {
     console.error("Error: MCP_FIREBASE_TOKEN environment variable is required.");
