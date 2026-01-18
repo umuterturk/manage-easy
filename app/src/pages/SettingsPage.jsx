@@ -37,7 +37,12 @@ const SettingsPage = () => {
     if (!user) throw new Error('No user logged in');
 
     const token = await user.getIdToken();
-    const response = await fetch(`http://127.0.0.1:5001/manage-easy-1768423759/us-central1/${endpoint}`, {
+    // Default to Production URL for deployed app
+    const baseUrl = window.location.hostname === 'localhost'
+      ? 'http://127.0.0.1:5001/manage-easy-1768423759/us-central1'
+      : 'https://us-central1-manage-easy-1768423759.cloudfunctions.net';
+
+    const response = await fetch(`${baseUrl}/${endpoint}`, {
       ...options,
       headers: {
         'Authorization': `Bearer ${token}`,
