@@ -7,71 +7,75 @@ const getTheme = (mode) => {
     palette: {
       mode,
       primary: {
-        main: lightMode ? '#2563EB' : '#3B82F6',
-        dark: lightMode ? '#1E40AF' : '#2563EB',
-        light: lightMode ? '#3B82F6' : '#60A5FA',
+        main: lightMode ? '#4F46E5' : '#818CF8', // Indigo
+        dark: lightMode ? '#4338CA' : '#6366F1',
+        light: lightMode ? '#818CF8' : '#A5B4FC',
+      },
+      secondary: {
+        main: '#EC4899', // Pink
       },
       background: {
-        default: lightMode ? '#FFFFFF' : '#0F172A',
-        paper: lightMode ? '#F8FAFC' : '#1E293B',
+        default: lightMode ? '#F1F5F9' : '#0F172A', // Lighter gray background
+        paper: lightMode ? '#FFFFFF' : '#1E293B',
       },
       text: {
-        primary: lightMode ? '#0F172A' : '#F1F5F9',
+        primary: lightMode ? '#1E293B' : '#F1F5F9',
         secondary: lightMode ? '#64748B' : '#94A3B8',
         disabled: lightMode ? '#94A3B8' : '#64748B',
       },
       divider: lightMode ? '#E2E8F0' : '#334155',
       success: {
-        main: lightMode ? '#10B981' : '#34D399',
+        main: '#10B981',
       },
       warning: {
-        main: lightMode ? '#F59E0B' : '#FBBF24',
+        main: '#F59E0B',
       },
       error: {
-        main: lightMode ? '#EF4444' : '#F87171',
+        main: '#EF4444',
       },
       info: {
-        main: lightMode ? '#3B82F6' : '#60A5FA',
+        main: '#3B82F6',
       },
       // Custom status colors
       status: {
         created: '#64748B',
-        todo: lightMode ? '#F59E0B' : '#FBBF24',
-        inProgress: lightMode ? '#3B82F6' : '#60A5FA',
-        done: lightMode ? '#10B981' : '#34D399',
+        todo: '#F59E0B',
+        inProgress: '#3B82F6',
+        done: '#10B981',
       },
+      gradient: {
+        primary: 'linear-gradient(135deg, #4F46E5 0%, #EC4899 100%)',
+        surface: lightMode ? 'linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,1) 100%)' : 'linear-gradient(180deg, rgba(30,41,59,0.8) 0%, rgba(30,41,59,1) 100%)',
+      }
     },
     typography: {
-      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      fontFamily: '"Outfit", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       h1: {
-        fontSize: '2rem',
-        fontWeight: 700,
-        lineHeight: 1.2,
+        fontSize: '3rem',
+        fontWeight: 800,
+        letterSpacing: '-0.025em',
       },
       h2: {
-        fontSize: '1.5rem',
-        fontWeight: 600,
-        lineHeight: 1.3,
+        fontSize: '2.25rem',
+        fontWeight: 700,
+        letterSpacing: '-0.025em',
       },
       h3: {
-        fontSize: '1.25rem',
-        fontWeight: 600,
-        lineHeight: 1.4,
+        fontSize: '1.875rem',
+        fontWeight: 700,
+        letterSpacing: '-0.025em',
       },
       h4: {
-        fontSize: '1.125rem',
+        fontSize: '1.5rem',
         fontWeight: 600,
-        lineHeight: 1.4,
       },
       h5: {
-        fontSize: '1rem',
+        fontSize: '1.25rem',
         fontWeight: 600,
-        lineHeight: 1.5,
       },
       h6: {
-        fontSize: '0.875rem',
+        fontSize: '1rem',
         fontWeight: 600,
-        lineHeight: 1.5,
       },
       body1: {
         fontSize: '1rem',
@@ -138,9 +142,15 @@ const getTheme = (mode) => {
       MuiCard: {
         styleOverrides: {
           root: {
-            borderRadius: 8,
+            borderRadius: 16,
             border: `1px solid ${lightMode ? '#E2E8F0' : '#334155'}`,
             backgroundImage: 'none',
+            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': {
+              boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+              transform: 'translateY(-4px)',
+            },
           },
         },
       },

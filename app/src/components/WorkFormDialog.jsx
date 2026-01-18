@@ -10,16 +10,18 @@ import {
     Box,
     CircularProgress,
     Autocomplete,
+    Avatar,
 } from '@mui/material';
 import { STATUS_OPTIONS } from '../utils/constants';
 
-const WorkFormDialog = ({ open, onClose, onSubmit, work = null, features = [], ideaId, loading = false }) => {
+const WorkFormDialog = ({ open, onClose, onSubmit, work = null, features = [], ideaId, loading = false, allUsers = [] }) => {
     const [formData, setFormData] = useState({
         featureId: '',
         title: '',
         description: '',
         status: 'TODO',
         type: 'TASK', // Default type
+        assignedTo: '', // Added
     });
 
     const [errors, setErrors] = useState({});
@@ -34,6 +36,7 @@ const WorkFormDialog = ({ open, onClose, onSubmit, work = null, features = [], i
                     description: work.description || '',
                     status: work.status || 'TODO',
                     type: work.type || 'TASK',
+                    assignedTo: work.assignedTo || '',
                 });
             } else {
                 setFormData({
@@ -42,6 +45,7 @@ const WorkFormDialog = ({ open, onClose, onSubmit, work = null, features = [], i
                     description: '',
                     status: 'TODO',
                     type: 'TASK',
+                    assignedTo: '',
                 });
             }
             setErrors({});
@@ -151,6 +155,29 @@ const WorkFormDialog = ({ open, onClose, onSubmit, work = null, features = [], i
                                 label="Feature (optional)"
                                 helperText="Assign this item to a feature"
                             />
+                        )}
+                    />
+
+                    <Autocomplete
+                        options={allUsers}
+                        getOptionLabel={(option) => option.displayName || option.email || 'Unknown User'}
+                        value={allUsers.find(u => u.uid === formData.assignedTo) || null}
+                        onChange={(event, value) => setFormData(prev => ({ ...prev, assignedTo: value?.uid || '' }))}
+                        disabled={loading}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label="Assign To (optional)"
+                                helperText="Select a user to assign this item"
+                            />
+                        )}
+                        renderOption={(props, option) => (
+                            <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Avatar size="small" src={option.photoURL} sx={{ width: 24, height: 24 }}>
+                                    {(option.displayName || option.email || '?').charAt(0)}
+                                </Avatar>
+                                {option.displayName || option.email}
+                            </Box>
                         )}
                     />
 

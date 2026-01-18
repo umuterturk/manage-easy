@@ -14,6 +14,8 @@ import {
     MenuItem,
     FormControl,
     InputLabel,
+    Autocomplete,
+    Avatar,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
@@ -51,7 +53,7 @@ const formatTimeAgo = (timestamp) => {
     return `${diffMonths}mo ago`;
 };
 
-const EnlargedCardModal = ({ open, onClose, data, featureName, onUpdate, onDelete }) => {
+const EnlargedCardModal = ({ open, onClose, data, features = [], allUsers = [], featureName, onUpdate, onDelete }) => {
     // Derive isBug from data.type
     // Check for both 'BUG' (backend enum) and 'bug' (legacy/lowercase)
     const isBug = data?.type === 'BUG' || data?.type === 'bug';
@@ -251,6 +253,14 @@ const EnlargedCardModal = ({ open, onClose, data, featureName, onUpdate, onDelet
 
         if (onUpdate) {
             await onUpdate(data.id, { status: newStatus });
+        }
+    };
+
+    const handleFeatureIdChange = async (newFeatureId) => {
+        if (newFeatureId === (data.featureId || '')) return;
+
+        if (onUpdate) {
+            await onUpdate(data.id, { featureId: newFeatureId === 'none' ? '' : newFeatureId });
         }
     };
 
@@ -520,8 +530,8 @@ const EnlargedCardModal = ({ open, onClose, data, featureName, onUpdate, onDelet
                     </Box>
                 </Box>
 
-                {/* Type and Status Selectors */}
-                <Box sx={{ display: 'flex', gap: 2, mt: 4, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                {/* Type, Status, and Feature Selectors */}
+                <Box sx={{ display: 'flex', gap: 2, mt: 4, pt: 2, borderTop: '1px solid', borderColor: 'divider', flexWrap: 'wrap' }}>
                     <FormControl size="small" sx={{ minWidth: 150 }}>
                         <InputLabel id="type-select-label">Type</InputLabel>
                         <Select
@@ -550,6 +560,45 @@ const EnlargedCardModal = ({ open, onClose, data, featureName, onUpdate, onDelet
                             <MenuItem value={STATUS.IN_PROGRESS}>{STATUS_LABELS[STATUS.IN_PROGRESS]}</MenuItem>
                             <MenuItem value={STATUS.DONE}>{STATUS_LABELS[STATUS.DONE]}</MenuItem>
                         </Select>
+                    </FormControl>
+
+                    <FormControl size="small" sx={{ minWidth: 200 }}>
+                        <InputLabel id="feature-select-label">Feature</InputLabel>
+                        <Select
+                            labelId="feature-select-label"
+                            id="feature-select"
+                            value={data.featureId || 'none'}
+                            label="Feature"
+                            onChange={(e) => handleFeatureIdChange(e.target.value)}
+                        >
+                            <MenuItem value="none">
+                                <em>None</em>
+                            </MenuItem>
+                            {features.map((f) => (
+                                <MenuItem key={f.id} value={f.id}>
+                                    {f.title}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    <FormControl size="small" sx={{ minWidth: 200 }}>
+                        <Autocomplete
+                            options={allUsers}
+                            getOptionLabel={(option) => option.displayName || option.email || 'Unknown User'}
+                            value={allUsers.find(u => u.uid === data.assignedTo) || null}
+                            onChange={(event, value) => {
+                                if (onUpdate) onUpdate(data.id, { assignedTo: value?.uid || null });
+                            }}
+                            renderInput={(params) => <TextField {...params} label="Assigned To" size="small" />}
+                            renderOption={(props, option) => (
+                                <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Avatar size="small" src={option.photoURL} sx={{ width: 20, height: 20 }}>
+                                        {(option.displayName || option.email || '?').charAt(0)}
+                                    </Avatar>
+                                    <Typography variant="body2">{option.displayName || option.email}</Typography>
+                                </Box>
+                            )}
+                        />
                     </FormControl>
                 </Box>
 

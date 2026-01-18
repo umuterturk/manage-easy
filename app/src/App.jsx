@@ -8,9 +8,9 @@ import getTheme from './theme';
 
 // Pages
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
 import IdeasPage from './pages/IdeasPage';
 import IdeaDetailPage from './pages/IdeaDetailPage';
+import IdeaWorksPage from './pages/IdeaWorksPage';
 import FeaturesPage from './pages/FeaturesPage';
 import TasksPage from './pages/TasksPage';
 import BugsPage from './pages/BugsPage';
@@ -46,7 +46,7 @@ const AppRoutes = ({ darkMode, toggleDarkMode }) => {
         return `/ideas/${lastIdeaId}`;
       }
     }
-    return "/dashboard";
+    return "/ideas";
   };
 
   return (
@@ -61,16 +61,6 @@ const AppRoutes = ({ darkMode, toggleDarkMode }) => {
           <ProtectedRoute>
             <Layout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
               <Navigate to={getRedirectPath()} replace />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Layout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
-              <Dashboard />
             </Layout>
           </ProtectedRoute>
         }
@@ -94,17 +84,12 @@ const AppRoutes = ({ darkMode, toggleDarkMode }) => {
             </Layout>
           </ProtectedRoute>
         }
-      />
-      <Route
-        path="/features"
-        element={
-          <ProtectedRoute>
-            <Layout darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
-              <FeaturesPage />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
+      >
+        <Route index element={<Navigate to="works" replace />} />
+        <Route path="works" element={<IdeaWorksPage />} />
+        <Route path="features" element={<FeaturesPage />} />
+      </Route>
+
       <Route
         path="/tasks"
         element={

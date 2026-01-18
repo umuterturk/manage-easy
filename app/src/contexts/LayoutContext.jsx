@@ -8,9 +8,10 @@ export const useLayout = () => {
 
 export const LayoutProvider = ({ children }) => {
     const [breadcrumbs, setBreadcrumbs] = useState(null);
+    const [headerContent, setHeaderContent] = useState(null);
 
     return (
-        <LayoutContext.Provider value={{ breadcrumbs, setBreadcrumbs }}>
+        <LayoutContext.Provider value={{ breadcrumbs, setBreadcrumbs, headerContent, setHeaderContent }}>
             {children}
         </LayoutContext.Provider>
     );

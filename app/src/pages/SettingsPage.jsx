@@ -10,16 +10,64 @@ import {
   ListItemIcon,
   ListItemSecondaryAction,
   Divider,
+  Button,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
+import IntegrationInstructionsIcon from '@mui/icons-material/IntegrationInstructions';
 import { useSettings } from '../contexts/SettingsContext';
+import { getAuth } from 'firebase/auth';
+import { useState } from 'react';
 
 const SettingsPage = () => {
   const { settings, updateSettings } = useSettings();
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   const handleToggle = (setting) => {
     updateSettings({ [setting]: !settings[setting] });
+  };
+
+  // Helper to make authenticated requests to our functions
+  const callFunction = async (endpoint, options = {}) => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+
+    const token = await user.getIdToken();
+    const response = await fetch(`http://127.0.0.1:5001/manage-easy-1768423759/us-central1/${endpoint}`, {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Request failed');
+    }
+    return response.json();
+  };
+
+  const handleGenerateApiKey = async () => {
+    try {
+      const data = await callFunction('generateApiKey', { method: 'POST' });
+      await navigator.clipboard.writeText(data.apiKey);
+      setSnackbarMessage('New API Key generated and copied to clipboard!');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Error generating API key:', error);
+      setSnackbarMessage(`Failed to generate key: ${error.message}`);
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
   };
 
   return (
@@ -64,6 +112,28 @@ const SettingsPage = () => {
               />
             </ListItemSecondaryAction>
           </ListItem>
+
+          <Divider />
+
+          <ListItem sx={{ py: 3, px: 3 }}>
+            <ListItemIcon>
+              <IntegrationInstructionsIcon color="primary" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Developer"
+              secondary="Generate a permanent Personal Access Token for MCP integration. (Treat this like a password!)"
+            />
+            <ListItemSecondaryAction>
+              <Button
+                variant="outlined"
+                size="small"
+                color="warning"
+                onClick={handleGenerateApiKey}
+              >
+                Generate API Key
+              </Button>
+            </ListItemSecondaryAction>
+          </ListItem>
         </List>
       </Paper>
 
@@ -76,6 +146,17 @@ const SettingsPage = () => {
           In a future update, they will be synced across all your devices using your account.
         </Typography>
       </Box>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity="success" sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

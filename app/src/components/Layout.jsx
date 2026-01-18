@@ -20,7 +20,6 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import DashboardIcon from '@mui/icons-material/Dashboard';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import FeaturedPlayListIcon from '@mui/icons-material/FeaturedPlayList';
 import TaskIcon from '@mui/icons-material/Task';
@@ -35,14 +34,13 @@ import { useLayout } from '../contexts/LayoutContext';
 const drawerWidth = 280;
 
 const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
   { text: 'Ideas', icon: <LightbulbIcon />, path: '/ideas' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
 ];
 
 const Layout = ({ children, darkMode, toggleDarkMode }) => {
   const { user, signOut } = useAuth();
-  const { breadcrumbs } = useLayout();
+  const { breadcrumbs, headerContent } = useLayout();
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -161,8 +159,13 @@ const Layout = ({ children, darkMode, toggleDarkMode }) => {
           </IconButton>
 
           {breadcrumbs ? (
-            <Box sx={{ flexGrow: 1 }}>
+            <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
               {breadcrumbs}
+              {headerContent && (
+                <Box sx={{ ml: 'auto', mr: 2 }}>
+                  {headerContent}
+                </Box>
+              )}
             </Box>
           ) : (
             <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>

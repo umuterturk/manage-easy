@@ -11,6 +11,7 @@ import {
     DialogContent,
     DialogActions,
     Button,
+    Avatar,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { useState, useEffect, useRef } from 'react';
@@ -54,7 +55,7 @@ const getInitials = (name) => {
     return name.substring(0, 2).toUpperCase();
 };
 
-const WorkCard = ({ work, featureName, onEdit, onDelete, onUpdate, autoFocus, isDraft, onSaveDraft, onCancelDraft }) => {
+const WorkCard = ({ work, features, allUsers = [], featureName, onEdit, onDelete, onUpdate, autoFocus, isDraft, onSaveDraft, onCancelDraft }) => {
     const [enlarged, setEnlarged] = useState(false);
     const [editingTitle, setEditingTitle] = useState(isDraft || false);
     const [editingDescription, setEditingDescription] = useState(false);
@@ -155,6 +156,12 @@ const WorkCard = ({ work, featureName, onEdit, onDelete, onUpdate, autoFocus, is
                     borderLeftColor: `${colorKey}.light`,
                     bgcolor: 'background.paper',
                     backgroundImage: (theme) => `linear-gradient(${alpha(theme.palette[colorKey].main, 0.04)}, ${alpha(theme.palette[colorKey].main, 0.04)})`,
+
+                    // Soft Filtering Styles
+                    opacity: work.matchesFilter === false ? 0.35 : 1,
+                    filter: work.matchesFilter === false ? 'grayscale(80%) blur(0.5px)' : 'none',
+                    transition: 'opacity 0.4s ease, filter 0.4s ease, box-shadow 0.2s ease',
+                    pointerEvents: work.matchesFilter === false ? 'none' : 'auto', // Prevent interaction with filtered out items
                 }}
             >
                 <CardContent sx={{ p: 1, '&:last-child': { pb: 1 }, height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -309,16 +316,35 @@ const WorkCard = ({ work, featureName, onEdit, onDelete, onUpdate, autoFocus, is
                             </Box>
 
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                {work.assignedTo && (
+                                    <Tooltip title={`Assigned to: ${allUsers.find(u => u.uid === work.assignedTo)?.displayName || 'Unknown'}`}>
+                                        <Avatar
+                                            src={allUsers.find(u => u.uid === work.assignedTo)?.photoURL}
+                                            sx={{
+                                                width: 18,
+                                                height: 18,
+                                                fontSize: '0.6rem',
+                                                bgcolor: 'primary.main',
+                                            }}
+                                        >
+                                            {(allUsers.find(u => u.uid === work.assignedTo)?.displayName || '?').charAt(0)}
+                                        </Avatar>
+                                    </Tooltip>
+                                )}
                                 {featureName && (
                                     <Chip
                                         label={featureName}
                                         size="small"
                                         sx={{
-                                            height: 14,
-                                            fontSize: '0.55rem',
+                                            height: 16,
+                                            fontSize: '0.65rem',
+                                            fontWeight: 600,
                                             backgroundColor: `${colorKey}.main`,
                                             color: `${colorKey}.contrastText`,
-                                            maxWidth: 60,
+                                            maxWidth: 100,
+                                            '& .MuiChip-label': {
+                                                px: 0.8,
+                                            },
                                         }}
                                     />
                                 )}
@@ -373,6 +399,8 @@ const WorkCard = ({ work, featureName, onEdit, onDelete, onUpdate, autoFocus, is
                 open={enlarged}
                 onClose={() => setEnlarged(false)}
                 data={work}
+                features={features}
+                allUsers={allUsers}
                 featureName={featureName}
                 onUpdate={onUpdate}
                 onDelete={onDelete}

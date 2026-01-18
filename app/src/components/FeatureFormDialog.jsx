@@ -9,10 +9,16 @@ import {
   MenuItem,
   Box,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  FormHelperText,
 } from '@mui/material';
 import { STATUS_OPTIONS } from '../utils/constants';
+import { useIdeas } from '../hooks/useIdeas';
 
 const FeatureFormDialog = ({ open, onClose, onSubmit, feature = null, ideaId, loading = false }) => {
+  const { ideas } = useIdeas();
   const [formData, setFormData] = useState({
     ideaId: ideaId || '',
     title: '',
@@ -91,6 +97,26 @@ const FeatureFormDialog = ({ open, onClose, onSubmit, feature = null, ideaId, lo
       <DialogTitle>{feature ? 'Edit Feature' : 'Create New Feature'}</DialogTitle>
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          {/* Show Idea Selector only if ideaId is NOT passed as prop (meaning we are not in context of a specific idea) */}
+          {!ideaId && (
+            <FormControl fullWidth error={Boolean(errors.ideaId)} disabled={loading || Boolean(feature)}>
+              <InputLabel id="idea-select-label">Idea</InputLabel>
+              <Select
+                labelId="idea-select-label"
+                value={formData.ideaId}
+                label="Idea"
+                onChange={handleChange('ideaId')}
+              >
+                {ideas.map((idea) => (
+                  <MenuItem key={idea.id} value={idea.id}>
+                    {idea.title}
+                  </MenuItem>
+                ))}
+              </Select>
+              {errors.ideaId && <FormHelperText>{errors.ideaId}</FormHelperText>}
+            </FormControl>
+          )}
+
           <TextField
             label="Title"
             fullWidth
