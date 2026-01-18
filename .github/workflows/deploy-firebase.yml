@@ -35,5 +35,5 @@ jobs:
         with:
           args: deploy --only functions,firestore
         env:
-          FIREBASE_SERVICE_ACCOUNT_MANAGE_EASY_1768423759: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MANAGE_EASY_1768423759 }}
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MANAGE_EASY_1768423759 }}
           PROJECT_ID: manage-easy-1768423759
