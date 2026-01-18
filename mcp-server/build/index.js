@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.server = void 0;
 const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
@@ -50,6 +51,7 @@ const server = new index_js_1.Server({
         tools: {},
     },
 });
+exports.server = server;
 // --- Resources ---
 // Expose ideas, features, and works as resources.
 // Scheme: idea://{id}, feature://{id}, work://{id}
@@ -253,13 +255,18 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
         };
     }
 });
-// --- Run ---
+// --- Run Stdio Server (Default) ---
 async function run() {
     const transport = new stdio_js_1.StdioServerTransport();
     await server.connect(transport);
     console.error("MCP Server running on stdio");
 }
-run().catch((error) => {
-    console.error("Fatal Error:", error);
-    process.exit(1);
-});
+// Only run if executed directly (not imported)
+// Check if this module is the main entry point
+const isMainModule = process.argv[1].endsWith('index.js');
+if (isMainModule) {
+    run().catch((error) => {
+        console.error("Fatal Error:", error);
+        process.exit(1);
+    });
+}

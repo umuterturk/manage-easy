@@ -5,10 +5,15 @@
     "main": "build/index.js",
     "scripts": {
         "build": "tsc",
-        "start": "node build/index.js"
+        "start": "node build/index.js",
+        "serve": "node build/server.js"
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.0.1",
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.6",
+        "cors": "^2.8.5",
+        "express": "^5.2.1",
         "node-fetch": "^2.7.0",
         "zod": "^3.22.4"
     },

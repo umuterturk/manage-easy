@@ -275,14 +275,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 });
 
-// --- Run ---
+// --- Export Server for HTTP usage ---
+export { server };
+
+// --- Run Stdio Server (Default) ---
 async function run() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error("MCP Server running on stdio");
 }
 
-run().catch((error) => {
-    console.error("Fatal Error:", error);
-    process.exit(1);
-});
+// Only run if executed directly (not imported)
+// Check if this module is the main entry point
+const isMainModule = process.argv[1].endsWith('index.js');
+
+if (isMainModule) {
+    run().catch((error) => {
+        console.error("Fatal Error:", error);
+        process.exit(1);
+    });
+}
