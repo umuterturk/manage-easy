@@ -42,7 +42,7 @@ This tells Claude where to find the connector on your hard drive.
   "mcpServers": {
     "manage-easy": {
       "command": "node",
-      "args": ["/Users/umut/Code/manage-easy/mcp-server/build/index.js"],
+      "args": ["/absolute/path/to/manage-easy/mcp-server/build/index.js"],
       "env": {
         "MCP_FIREBASE_TOKEN": "YOUR_API_KEY_HERE"
       }
