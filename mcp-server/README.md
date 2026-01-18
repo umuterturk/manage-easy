@@ -1,98 +1,63 @@
 # Manage Easy MCP Server
 
-A Model Context Protocol (MCP) server that connects AI assistants (like Claude) to the Manage Easy capabilities. It allows you to manage ideas, features, and works (tasks/bugs).
+> **Note:** This is a **connector** that runs on your computer. It acts as a bridge between Claude Desktop and your existing Firebase Backend.
 
-## Features
+## Architecture
 
-- **Resources**: Direct access to ideas, features, and works via `idea://`, `feature://`, and `work://` URIs.
-- **Tools**: List, create, and search for ideas, features, and works.
+```mermaid
+graph LR
+    A[Claude Desktop] -- Stdio --> B[MCP Connector\n(Running Locally)]
+    B -- HTTPS --> C[Firebase Cloud Functions\n(Existing Deployment)]
+```
+
+You do **NOT** need to deploy this connector to a server. It is designed to run locally inside Claude Desktop.
 
 ## Prerequisites
 
-- Node.js (v18 or higher)
-- A Manage Easy account (or at least access to the Firebase project)
+1.  **Node.js**: v18+ installed on your machine.
+2.  **API Key**: You need a `me_sk_` key to authenticate with your Firebase backend.
 
-## Installation
+## Setup Instructions
 
-1. Navigate to the server directory:
-   ```bash
-   cd mcp-server
-   ```
+### 1. Build the Connector
+Run these commands in your terminal **once** to prepare the code:
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+```bash
+cd mcp-server
+npm install
+npm run build
+```
 
-3. Build the server:
-   ```bash
-   npm run build
-   ```
+### 2. Configure Claude Desktop
+This tells Claude where to find the connector on your hard drive.
 
-## Configuration
+1.  Open the config file:
+    - **Mac**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+    - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
-The server requires a Firebase Token to authenticate requests.
+2.  Add this entry (update the path and token):
 
-1. **Obtain a Token**:
-   - Only `me_sk_` API keys are currently supported for direct server access.
-   - If you don't have one, you'll need one generated from the backend (or ask the admin).
-   - Alternatively, for local dev, you can use a valid Firebase ID token if you catch one, but API keys are persistent.
+```json
+{
+  "mcpServers": {
+    "manage-easy": {
+      "command": "node",
+      "args": ["/Users/umut/Code/manage-easy/mcp-server/build/index.js"],
+      "env": {
+        "MCP_FIREBASE_TOKEN": "YOUR_API_KEY_HERE"
+      }
+    }
+  }
+}
+```
 
-## Usage
+> **Tip:** Use `pwd` in the terminal to find the full path to the `build/index.js` file.
 
-### 1. Using with Claude Desktop (Stdio)
+### 3. Restart Claude
+Completely quit and restart the Claude Desktop app. You should now see the `manage-easy` tools available.
 
-To use this server with the Claude Desktop app:
+## Troubleshooting
 
-1. Open your Claude Desktop configuration file:
-   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-
-2. Add the following to the `mcpServers` object:
-
-   ```json
-   {
-     "mcpServers": {
-       "manage-easy": {
-         "command": "node",
-         "args": ["/absolute/path/to/manage-easy/mcp-server/build/index.js"],
-         "env": {
-           "MCP_FIREBASE_TOKEN": "your_api_key_here"
-         }
-       }
-     }
-   }
-   ```
-
-   **Important**: Replace `/absolute/path/to/...` with the full path to your project directory.
-
-3. Restart Claude Desktop.
-
-### 2. Using via HTTP (SSE)
-
-Use this mode to deploy the server remotely (e.g., Render, Railway) or access it over HTTP.
-
-1. Start the server:
-   ```bash
-   export MCP_FIREBASE_TOKEN=your_api_key_here
-   npm run serve
-   ```
-
-2. The server will start on port `8080`.
-   - **SSE Endpoint**: `http://localhost:8080/sse`
-   - **POST Endpoint**: `http://localhost:8080/messages`
-
-## API Reference
-
-### Tools
-- `list_ideas(tag?)`
-- `list_features(ideaId?, tag?)`
-- `list_works(ideaId?, featureId?, tag?)`
-- `create_idea(title, description?, tags?)`
-- `create_feature(ideaId, title, description?, tags?)`
-- `create_work(title, description?, type, status, featureId?, ideaId?, tags?)`
-
-### Resources
-- `idea://{id}`
-- `feature://{id}`
-- `work://{id}`
+- **"Connection Refused"**: Check your internet connection. The connector needs to reach the Firebase URL (`us-central1-manage-easy-1768423759.cloudfunctions.net`).
+- **"Unauthorized"**: Your `MCP_FIREBASE_TOKEN` is missing or invalid.
+- **Tools not showing**: Check the Claude Desktop logs using `tail -f ~/Library/Logs/Claude/mcp.log`.
